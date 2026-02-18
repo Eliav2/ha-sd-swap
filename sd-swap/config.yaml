@@ -25,15 +25,20 @@ ingress_entry: /
 panel_icon: "mdi:micro-sd"
 panel_title: "SD Swap"
 
-# Supervisor API access (to query HA OS version info)
+# Supervisor API access
+# hassio_role: backup gives access to all /backups/* endpoints (create, download, upload, restore)
+# as well as all /*/info read endpoints.
+# manager role is needed if we later want /host/reboot or /os/* write endpoints.
 hassio_api: true
-hassio_role: default
+hassio_role: backup
 homeassistant_api: false
 auth_api: false
 
 # Storage
 map:
   - type: data
+    read_only: false
+  - type: backup
     read_only: false
 tmpfs: true
 
