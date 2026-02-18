@@ -1,0 +1,69 @@
+#include <tunables/global>
+
+profile sd_swap flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # Capabilities
+  file,
+  signal (send) set=(kill,term,int,hup,cont),
+
+  # S6-Overlay
+  /init ix,
+  /bin/** ix,
+  /usr/bin/** ix,
+  /run/{s6,s6-rc*,service}/** ix,
+  /package/** ix,
+  /command/** ix,
+  /etc/services.d/** rwix,
+  /etc/cont-init.d/** rwix,
+  /etc/cont-finish.d/** rwix,
+  /run/{,**} rwk,
+  /dev/tty rw,
+
+  # Bashio
+  /usr/lib/bashio/** ix,
+  /tmp/** rwk,
+
+  # Add-on data
+  /data/** rw,
+
+  # Nginx
+  /usr/sbin/nginx ix,
+  /etc/nginx/** r,
+  /var/www/** r,
+  /var/lib/nginx/** rw,
+  /var/log/nginx/** rw,
+  /run/nginx/** rwk,
+
+  # Block device access — required for SD card flashing
+  /dev/sd* rw,
+  /dev/mmcblk* rw,
+  /dev/nvme* r,
+  /sys/block/** r,
+  /sys/class/block/** r,
+  /sys/devices/** r,
+  /proc/partitions r,
+
+  # Block device tools
+  /usr/bin/lsblk ix,
+  /usr/bin/blkid ix,
+  /usr/sbin/blockdev ix,
+  /usr/bin/dd ix,
+  /bin/dd ix,
+  /usr/bin/pv ix,
+
+  # Download tools
+  /usr/bin/curl ix,
+  /usr/bin/wget ix,
+
+  # Decompression
+  /usr/bin/xz ix,
+  /usr/bin/gzip ix,
+  /usr/bin/gunzip ix,
+
+  # Network access (for downloading images)
+  network inet stream,
+  network inet dgram,
+  network inet6 stream,
+  network inet6 dgram,
+}
