@@ -19,6 +19,21 @@ export async function flash(
   devicePath: string,
   progressCb: (percent: number) => void,
 ): Promise<void> {
+  // Diagnostics — what does the container see?
+  try {
+    const lsDev = await $`ls -la ${devicePath}`.text();
+    console.log(`[flash] ls -la ${devicePath}: ${lsDev.trim()}`);
+    const whoami = await $`whoami`.text();
+    console.log(`[flash] whoami: ${whoami.trim()}`);
+    const id = await $`id`.text();
+    console.log(`[flash] id: ${id.trim()}`);
+    // Check if we can read/write
+    const testWrite = await $`dd if=/dev/zero of=${devicePath} bs=512 count=1 2>&1`.text();
+    console.log(`[flash] test dd write: ${testWrite.trim()}`);
+  } catch (err) {
+    console.error(`[flash] diagnostics failed:`, err);
+  }
+
   const uncompressedSize = await getUncompressedSize(imagePath);
   console.log(`[flash] Image: ${imagePath}, Device: ${devicePath}, Uncompressed: ${uncompressedSize}`);
 
