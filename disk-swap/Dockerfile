@@ -10,6 +10,7 @@ FROM $BUILD_FROM
 #   e2fsprogs:  ext4 tools for backup injection
 #   curl:       image download + Bun installer
 #   parted:     partprobe (re-read partition table)
+#   mount:      full mount/umount (busybox version lacks ext4 support)
 RUN apk add --no-cache \
     util-linux \
     coreutils \
@@ -19,7 +20,8 @@ RUN apk add --no-cache \
     jq \
     e2fsprogs \
     curl \
-    parted
+    parted \
+    mount
 
 # Install Bun runtime
 ARG BUN_VERSION=1.2.4
