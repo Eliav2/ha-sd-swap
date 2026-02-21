@@ -20,6 +20,7 @@ export async function flash(
   progressCb: (percent: number) => void,
 ): Promise<void> {
   const uncompressedSize = await getUncompressedSize(imagePath);
+  console.log(`[flash] Image: ${imagePath}, Device: ${devicePath}, Uncompressed: ${uncompressedSize}`);
 
   const proc = Bun.spawn(
     [
@@ -36,6 +37,7 @@ export async function flash(
   const reader = proc.stderr.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  const errorLines: string[] = [];
 
   while (true) {
     const { done, value } = await reader.read();
@@ -46,16 +48,34 @@ export async function flash(
     buffer = lines.pop() || "";
 
     for (const line of lines) {
-      const num = parseFloat(line.trim());
-      if (!isNaN(num)) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const num = parseFloat(trimmed);
+      if (!isNaN(num) && num >= 0 && num <= 100) {
         progressCb(Math.min(Math.round(num), 100));
+      } else {
+        // Non-numeric line = error output from xz/pv/dd
+        console.error(`[flash] stderr: ${trimmed}`);
+        errorLines.push(trimmed);
       }
+    }
+  }
+
+  // Process remaining buffer
+  if (buffer.trim()) {
+    const num = parseFloat(buffer.trim());
+    if (isNaN(num) || num < 0 || num > 100) {
+      console.error(`[flash] stderr: ${buffer.trim()}`);
+      errorLines.push(buffer.trim());
     }
   }
 
   const exitCode = await proc.exited;
   if (exitCode !== 0) {
-    throw new Error(`Flash pipeline exited with code ${exitCode}`);
+    const detail = errorLines.length > 0
+      ? errorLines.join("; ")
+      : "unknown error";
+    throw new Error(`Flash failed (exit ${exitCode}): ${detail}`);
   }
 }
 
