@@ -52,7 +52,8 @@ export interface OsInfo {
   board: string;
 }
 
-/** Supervisor GET /host/info response data (subset we use) */
+/** Supervisor GET /host/info response data (subset we use).
+ *  Note: disk values are in GB (float), not bytes. */
 export interface HostInfo {
   hostname: string;
   disk_total: number;

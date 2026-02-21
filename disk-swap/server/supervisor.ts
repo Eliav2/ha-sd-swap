@@ -170,7 +170,7 @@ export async function getSystemInfo() {
     os_version: osInfo.version,
     os_version_latest: osInfo.version_latest,
     ip_address: extractIpAddress(networkInfo),
-    free_space_bytes: hostInfo.disk_free,
-    free_space_human: formatBytes(hostInfo.disk_free),
+    free_space_bytes: Math.round(hostInfo.disk_free * 1024 ** 3),
+    free_space_human: formatBytes(Math.round(hostInfo.disk_free * 1024 ** 3)),
   };
 }
