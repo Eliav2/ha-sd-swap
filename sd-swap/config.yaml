@@ -10,7 +10,7 @@ init: false
 startup: application
 boot: manual
 stage: experimental
-timeout: 1800
+timeout: 300
 
 # Hardware access — full_access is required because USB SD card readers
 # appear as dynamic /dev/sdX block devices and HA's devices: key only
