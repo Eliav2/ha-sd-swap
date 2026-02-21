@@ -33,8 +33,8 @@ COPY shared/ /usr/src/shared/
 COPY package.json bun.lock /usr/src/
 RUN cd /usr/src && bun install --frozen-lockfile --production
 
-# Mount point for new SD's data partition (Stage 4)
-RUN mkdir -p /mnt/newsd
+# Runtime directories
+RUN mkdir -p /mnt/newsd /run/nginx /var/lib/nginx/tmp /var/log/nginx
 
 # Copy root filesystem overlay (s6 services, nginx config, static web UI)
 COPY rootfs /
