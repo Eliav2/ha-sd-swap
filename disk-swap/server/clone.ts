@@ -69,17 +69,22 @@ export async function runClonePipeline(devicePath: string): Promise<Job> {
   // Fire-and-forget — progress goes via WebSocket
   (async () => {
     try {
+      console.log("[clone] Starting backup stage...");
       await runBackupStage();
+      console.log("[clone] Starting download stage...");
       await runDownloadStage();
+      console.log("[clone] Starting flash stage...");
       await runFlashStage(devicePath);
+      console.log("[clone] Starting inject stage...");
       await runInjectStage(devicePath);
       completeJob();
+      console.log("[clone] Pipeline completed successfully!");
     } catch (err) {
       if (job.status === "in_progress") {
         const active = findActiveStage(job);
         failJob(active, String(err));
       }
-      console.error("Clone pipeline failed:", err);
+      console.error("[clone] Pipeline failed:", err);
     }
   })();
 
@@ -109,11 +114,14 @@ async function runBackupStage(): Promise<void> {
   }
 
   try {
+    console.log("[backup] Creating full backup via Supervisor API...");
     const { job_id } = await createFullBackup();
+    console.log("[backup] Backup job created:", job_id);
 
     while (true) {
       await new Promise((r) => setTimeout(r, 2000));
       const status = await pollJob(job_id);
+      console.log("[backup] Poll:", JSON.stringify(status));
 
       if (status.errors?.length > 0) {
         throw new Error(`Backup failed: ${status.errors.join(", ")}`);
@@ -123,6 +131,7 @@ async function runBackupStage(): Promise<void> {
 
       if (status.done) {
         backupSlug = status.reference || "";
+        console.log("[backup] Done. Slug:", backupSlug);
         if (!backupSlug) {
           throw new Error("Backup completed but no slug returned.");
         }
@@ -134,6 +143,7 @@ async function runBackupStage(): Promise<void> {
       }
     }
   } catch (err) {
+    console.error("[backup] Failed:", err);
     failJob("backup", String(err));
     throw err;
   }
