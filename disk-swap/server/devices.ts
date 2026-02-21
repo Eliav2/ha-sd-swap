@@ -6,16 +6,22 @@ import type { RawBlockDevice, Device } from "../shared/types.ts";
  * Uses findmnt to find the root mount source, then lsblk to get the parent disk.
  */
 export async function getBootDisk(): Promise<string> {
-  const rootSource = (
-    await $`findmnt --noheadings --output SOURCE --target /`.text()
-  ).trim();
+  try {
+    const rootSource = (
+      await $`findmnt --noheadings --output SOURCE --target /`.text()
+    ).trim();
 
-  const pkname = (
-    await $`lsblk --noheadings --output PKNAME ${rootSource}`.text()
-  ).trim();
+    // In HA containers the root fs is often overlay — not a block device
+    const result = await $`lsblk --noheadings --output PKNAME ${rootSource}`.nothrow().quiet();
+    if (result.exitCode !== 0) return "";
 
-  const diskName = pkname || rootSource;
-  return diskName.replace("/dev/", "");
+    const pkname = result.text().trim();
+    const diskName = pkname || rootSource;
+    return diskName.replace("/dev/", "");
+  } catch {
+    // If anything fails, return empty — USB filter is the primary safety gate
+    return "";
+  }
 }
 
 /**
