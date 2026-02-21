@@ -1,8 +1,8 @@
-name: SD Card Swap
-version: "0.1.6"
-slug: sd-swap
-description: "Flash a new SD card with HA OS — directly from Home Assistant, no PC required."
-url: "https://github.com/eliav2/ha-sd-swap"
+name: Disk Swap
+version: "0.2.0"
+slug: disk-swap
+description: "Flash HA OS to any USB device — directly from Home Assistant, no PC required."
+url: "https://github.com/eliav2/ha-disk-swap"
 arch:
   - aarch64
   - amd64
@@ -12,7 +12,7 @@ boot: manual
 stage: experimental
 timeout: 300
 
-# Hardware access — full_access is required because USB SD card readers
+# Hardware access — full_access is required because USB devices
 # appear as dynamic /dev/sdX block devices and HA's devices: key only
 # supports static paths (no wildcards).
 full_access: true
@@ -22,8 +22,8 @@ udev: true
 ingress: true
 ingress_port: 8099
 ingress_entry: /
-panel_icon: "mdi:micro-sd"
-panel_title: "SD Swap"
+panel_icon: "mdi:harddisk"
+panel_title: "Disk Swap"
 
 # Supervisor API access
 # hassio_role: backup gives access to all /backups/* endpoints (create, download, upload, restore)

@@ -1,16 +1,16 @@
-# ha-sd-swap — Full Implementation Plan
+# ha-disk-swap — Full Implementation Plan
 
-> End-to-end SD card migration: flash fresh HAOS + restore full backup, all from within Home Assistant.
+> End-to-end disk migration: flash fresh HAOS + restore full backup to any USB device, all from within Home Assistant.
 
 ---
 
 ## Vision
 
-1. User plugs new SD card into USB adapter connected to the Pi
-2. Add-on detects the card automatically (hotplug via SSE)
-3. User clicks "Clone to new card" → confirms target device
-4. Add-on orchestrates backup → download → flash → inject with live progress
-5. User physically swaps cards → Pi boots → restores backup from onboarding → done
+1. User plugs a USB device (target device via adapter, USB stick, USB SSD) into the HA host
+2. App detects the device automatically (hotplug via SSE)
+3. User clicks "Clone to new device" → confirms target device
+4. App orchestrates backup → download → flash → inject with live progress
+5. User physically swaps devices → boots → restores backup from onboarding → done
 
 ---
 
@@ -210,7 +210,7 @@ function isSafeTarget(dev: BlockDevice, bootDisk: string): boolean {
   if (dev.name === bootDisk) return false;       // never flash boot device
   if (dev.tran !== "usb") return false;           // USB devices only
   if (dev.size < 8 * 1024 ** 3) return false;    // reject < 8GB (too small for HAOS)
-  if (dev.size > 2 * 1024 ** 4) return false;    // reject > 2TB (probably not an SD card)
+  if (dev.size > 2 * 1024 ** 4) return false;    // reject > 2TB (probably not an target device)
   return true;
 }
 
@@ -225,7 +225,7 @@ async function getBootDisk(): Promise<string> {
 
 ## Files to Build
 
-### Backend (`sd-swap/server/`)
+### Backend (`disk-swap/server/`)
 
 TypeScript backend running on **Bun** with **Hono** as the HTTP framework.
 Shared types with the frontend via `shared/types.ts`.
@@ -251,11 +251,11 @@ server/
 │                     - buildDownloadUrl(boardSlug, version) → URL
 │                     - downloadImage(url, dest, progressCb) → streams with fetch + Bun.write
 │                     - verifyChecksum(imagePath, sha256Url) → download .sha256 + verify
-├── flasher.ts        SD card flashing
+├── flasher.ts        target device flashing
 │                     - flash(imagePath, device, progressCb) → xz|pv|dd via Bun.spawn
 │                     - reads pv --numeric stderr for progress %
 │                     - runs partprobe after dd completes (via Bun.$)
-├── injector.ts       Backup injection into new SD
+├── injector.ts       Backup injection into new device
 │                     - findDataPartition(device) → lsblk -nro NAME,LABEL /dev/sdX (Bun.$)
 │                       then filter for LABEL=hassos-data (scoped to target device only)
 │                     - mountPartition(partition, mountpoint) → Bun.$ mount -t ext4
@@ -273,7 +273,7 @@ shared/               # Shared between frontend and backend
 └── types.ts          Device, Job, Stage, SystemInfo, API request/response types
 ```
 
-### Frontend (`frontend/` → pre-built to `sd-swap/rootfs/var/www/`)
+### Frontend (`frontend/` → pre-built to `disk-swap/rootfs/var/www/`)
 
 **TanStack Start** in SPA mode, pre-built with Vite. Only the static `dist/` output
 ships in the container — no Node.js runtime needed.
@@ -344,7 +344,7 @@ resolve correctly regardless of the ingress prefix.
 ```
 Screen 1: DEVICE SELECT
   ┌─────────────────────────────────────────┐
-  │  SD Card Swap                           │
+  │  Disk Swap                           │
   │                                         │
   │  Connected USB devices:                 │
   │  ┌─────────────────────────────────┐   │
@@ -356,7 +356,7 @@ Screen 1: DEVICE SELECT
   │  HAOS:    17.1 (latest: 17.1)          │
   │  Free space: 12.3 GB                   │
   │                                         │
-  │  [ Clone to new card ]                  │
+  │  [ Clone to new device ]                  │
   └─────────────────────────────────────────┘
 
 Screen 2: CONFIRMATION DIALOG (before starting)
@@ -373,7 +373,7 @@ Screen 2: CONFIRMATION DIALOG (before starting)
   │   • Create a full backup of your HA     │
   │   • Download HAOS 17.1 (~350 MB)        │
   │   • Flash the image to /dev/sda         │
-  │   • Copy your backup to the new card    │
+  │   • Copy your backup to the new device    │
   │                                         │
   │  [ Cancel ]        [ Erase & Clone ]    │
   └─────────────────────────────────────────┘
@@ -393,14 +393,14 @@ Screen 3: PROGRESS (live WebSocket)
 
 Screen 4: SWAP NOW (success)
   ┌─────────────────────────────────────────┐
-  │  Done! Your new SD card is ready.       │
+  │  Done! Your new target device is ready.       │
   │                                         │
   │  To complete the migration:             │
   │                                         │
   │  1. Shut down the Pi (Settings → System │
   │     → Hardware → Shutdown)              │
-  │  2. Remove the current SD card          │
-  │  3. Insert the new SD card              │
+  │  2. Remove the current target device          │
+  │  3. Insert the new target device              │
   │  4. Power on and wait ~2 min            │
   │  5. Open one of these URLs:             │
   │     http://192.168.1.42:8123  ← likely  │
@@ -424,16 +424,16 @@ Screen 4: SWAP NOW (success)
 Two services run inside the container:
 
 ```
-rootfs/etc/services.d/sd-swap/
+rootfs/etc/services.d/disk-swap/
 ├── run       # existing — starts nginx on ingress port
 └── finish    # existing — standard s6 finish
 
-rootfs/etc/services.d/sd-swap-api/
+rootfs/etc/services.d/disk-swap-api/
 ├── run       # NEW — starts Bun backend on port 8080
 └── finish    # NEW — standard s6 finish
 ```
 
-**sd-swap-api/run** (new):
+**disk-swap-api/run** (new):
 ```bash
 #!/usr/bin/with-contenv bashio
 exec bun run /usr/src/server/index.ts
@@ -493,7 +493,7 @@ RUN cd /usr/src && bun install --frozen-lockfile --production
 # Pre-built frontend (built with pnpm on dev machine)
 COPY frontend/dist/ /var/www/
 
-# Mount point for new SD's data partition (Stage 4 injection)
+# Mount point for new device's data partition (Stage 4 injection)
 RUN mkdir -p /mnt/newsd
 
 # Root filesystem overlay (s6 services, nginx config)
@@ -506,7 +506,7 @@ COPY rootfs /
 
 Already applied:
 - `hassio_role: backup` (was `default`) — unlocks all `/backups/*` write endpoints
-- `map: - type: backup, read_only: false` — lets us read backup files to copy into new SD
+- `map: - type: backup, read_only: false` — lets us read backup files to copy into new device
 
 Still needed:
 - `timeout: 1800` (was `300`) — 30 minutes instead of 5. Full backup + 350MB download + flash + inject can easily exceed 5 minutes on slow hardware/network
@@ -516,10 +516,10 @@ Still needed:
 ## Implementation Sequence
 
 ### Step 1: Backend skeleton + device listing
-- Create `sd-swap/server/` directory with `index.ts`, `devices.ts`, `supervisor.ts`
-- Create `sd-swap/shared/types.ts` for shared types
-- Create `sd-swap/package.json` with Bun + Hono dependencies
-- Add `sd-swap-api` s6 service (`run` + `finish`)
+- Create `disk-swap/server/` directory with `index.ts`, `devices.ts`, `supervisor.ts`
+- Create `disk-swap/shared/types.ts` for shared types
+- Create `disk-swap/package.json` with Bun + Hono dependencies
+- Add `disk-swap-api` s6 service (`run` + `finish`)
 - Update Dockerfile: install Bun, system deps; `bun install` deps
 - Update `nginx.conf.tpl`: replace API stub with proxy_pass + WebSocket upgrade
 - Update `config.yaml`: timeout → 1800
@@ -544,7 +544,7 @@ Still needed:
 
 ### Step 4: Backup creation + injection
 - `supervisor.ts`: `createFullBackup(name)`, `pollJob(jobId)`
-  - Backup name: `sd-swap-clone-{YYYY-MM-DD}` for easy identification in onboarding
+  - Backup name: `disk-swap-clone-{YYYY-MM-DD}` for easy identification in onboarding
   - Use `background: true`, poll `GET /jobs/{jobId}` every 2s, extract slug from `reference` field
   - After backup completes: verify `/backup/{slug}.tar` exists on mapped volume
 - `injector.ts`:
@@ -595,7 +595,7 @@ Each stage has specific failure modes and cleanup requirements:
 | 3 Flash | dd error / device removed | Card is in undefined state — warn user "card may be unusable". Release lock. |
 | 3 Flash | partprobe fails | Non-fatal — retry once, then attempt lsblk anyway. |
 | 4 Inject | Mount fails | Check if partition exists (`blkid`). Release lock. Show error. |
-| 4 Inject | Copy fails (disk full on new card) | `umount /mnt/newsd` in finally block. Release lock. |
+| 4 Inject | Copy fails (disk full on new device) | `umount /mnt/newsd` in finally block. Release lock. |
 | 4 Inject | Any error | Always run `umount /mnt/newsd` in finally block. |
 
 **Global rule:** The clone lock is released in a `finally` block wrapping the entire clone operation. No stage failure should leave the lock held.
@@ -700,13 +700,13 @@ data: {"name":"sda"}
 ```
 1. POST http://supervisor/backups/new/full
    Headers: Authorization: Bearer $SUPERVISOR_TOKEN
-   Body: {"name": "sd-swap-clone-2026-02-18"}
+   Body: {"name": "disk-swap-clone-2026-02-18"}
    Response: {"result": "ok", "data": {"slug": "abc12345"}}
 
    Note: without "background: true", this blocks until backup completes.
    For large installs, use background mode:
 
-   Body: {"name": "sd-swap-clone-2026-02-18", "background": true}
+   Body: {"name": "disk-swap-clone-2026-02-18", "background": true}
    Response: {"result": "ok", "data": {"job_id": "xxxxxxxx"}}
 
 2. Poll: GET http://supervisor/jobs/{job_id}
@@ -843,6 +843,6 @@ The current `apparmor.txt` is missing permissions required by the plan:
 # Backup volume access
 /backup/** rw,
 
-# Temp mount point for new SD
+# Temp mount point for new device
 /mnt/newsd/** rw,
 ```

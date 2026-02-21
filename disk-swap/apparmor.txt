@@ -1,6 +1,6 @@
 #include <tunables/global>
 
-profile sd_swap flags=(attach_disconnected,mediate_deleted) {
+profile disk_swap flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
   # Capabilities
@@ -27,15 +27,10 @@ profile sd_swap flags=(attach_disconnected,mediate_deleted) {
   # Add-on data
   /data/** rw,
 
-  # Nginx
-  /usr/sbin/nginx ix,
-  /etc/nginx/** r,
+  # Static web UI files
   /var/www/** r,
-  /var/lib/nginx/** rw,
-  /var/log/nginx/** rw,
-  /run/nginx/** rwk,
 
-  # Block device access — required for SD card flashing
+  # Block device access — required for flashing USB devices
   /dev/sd* rw,
   /dev/mmcblk* rw,
   /dev/nvme* r,
@@ -81,6 +76,6 @@ profile sd_swap flags=(attach_disconnected,mediate_deleted) {
   # Backup volume access
   /backup/** rw,
 
-  # Temp mount point for new SD card
+  # Temp mount point for target device
   /mnt/newsd/** rw,
 }

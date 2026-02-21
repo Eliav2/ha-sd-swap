@@ -1,10 +1,10 @@
 #!/usr/bin/with-contenv bashio
 # ==============================================================================
-# SD Card Swap — main service entry point
+# Disk Swap — main service entry point
 # Starts the Bun/Hono server that serves both API and static web UI
 # ==============================================================================
 
-bashio::log.info "Starting SD Card Swap app..."
+bashio::log.info "Starting Disk Swap app..."
 
 export INGRESS_PORT="8099"
 

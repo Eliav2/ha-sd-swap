@@ -1,22 +1,22 @@
-# ha-sd-swap
+# ha-disk-swap
 
-A Home Assistant App(add-on) for end-to-end SD card migration — directly on the Raspberry Pi, no PC required.
+A Home Assistant App for end-to-end disk migration — directly on the device, no PC required.
 
 ## The Problem
 
-Migrating to a new SD card normally means taking your Pi offline, finding a computer, and using tools like Raspberry Pi Imager or Balena Etcher. There's no way to do it from within Home Assistant itself.
+Migrating to a new storage device normally means taking your system offline, finding a computer, and using tools like Raspberry Pi Imager or Balena Etcher. There's no way to do it from within Home Assistant itself.
 
 ## The Solution
 
-`ha-sd-swap` lets you plug a new SD card into your Pi via a USB adapter and flash it with a fresh HA OS image — all from the HA UI. Once done, simply swap the cards and boot.
+`ha-disk-swap` lets you plug any USB storage device (SD card via adapter, USB stick, USB SSD) into your HA device and flash it with a fresh HA OS image — all from the HA UI. Once done, simply swap and boot.
 
 ## How It Works
 
-1. Plug your new SD card in via USB adapter
-2. Open the add-on UI — it detects the new card automatically
+1. Plug your new storage device in via USB
+2. Open the app UI — it detects the device automatically
 3. Choose your image (latest HA OS or custom)
 4. Flash, verify, swap, done
 
 ## Status
 
-🚧 Early experiment / work in progress
+Early experiment / work in progress
