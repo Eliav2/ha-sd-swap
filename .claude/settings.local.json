@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "WebFetch(*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh search:*)",
+      "Bash(gh release list:*)"
     ]
   }
 }
