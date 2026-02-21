@@ -110,6 +110,7 @@ export async function createFullBackup(): Promise<BackupJobResponse> {
   return supervisorPost<BackupJobResponse>("/backups/new/full", {
     name,
     background: true,
+    homeassistant_exclude_database: false,
   });
 }
 
