@@ -33,8 +33,14 @@ COPY shared/ /usr/src/shared/
 COPY package.json bun.lock /usr/src/
 RUN cd /usr/src && bun install --frozen-lockfile --production
 
-# Runtime directories
-RUN mkdir -p /mnt/newsd /run/nginx /var/lib/nginx/tmp /var/log/nginx
+# Runtime directories (nginx needs these writable at runtime)
+RUN mkdir -p /mnt/newsd /run/nginx \
+    /var/lib/nginx/tmp/client_body \
+    /var/lib/nginx/tmp/proxy \
+    /var/lib/nginx/tmp/fastcgi \
+    /var/lib/nginx/logs \
+    /var/log/nginx \
+    && chmod -R 777 /var/lib/nginx /var/log/nginx /run/nginx
 
 # Copy root filesystem overlay (s6 services, nginx config, static web UI)
 COPY rootfs /

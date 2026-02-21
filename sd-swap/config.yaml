@@ -1,5 +1,5 @@
 name: SD Card Swap
-version: "0.1.2"
+version: "0.1.3"
 slug: sd-swap
 description: "Flash a new SD card with HA OS — directly from Home Assistant, no PC required."
 url: "https://github.com/eliav2/ha-sd-swap"
