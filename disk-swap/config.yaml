@@ -22,7 +22,7 @@ udev: true
 ingress: true
 ingress_port: 8099
 ingress_entry: /
-panel_icon: "mdi:harddisk"
+panel_icon: "mdi:micro-sd"
 panel_title: "Disk Swap"
 
 # Supervisor API access
