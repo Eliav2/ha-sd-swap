@@ -4,12 +4,15 @@ import { useSystemInfo } from "@/hooks/use-system-info";
 import { DeviceCard } from "@/components/DeviceCard";
 import { SystemInfo } from "@/components/SystemInfo";
 import { EmptyState } from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
 
 interface DeviceListProps {
+  selectedDevice: Device | null;
   onSelect: (device: Device) => void;
+  onNext: () => void;
 }
 
-export function DeviceList({ onSelect }: DeviceListProps) {
+export function DeviceList({ selectedDevice, onSelect, onNext }: DeviceListProps) {
   const { data: devices, isLoading, error } = useDevices();
   const { data: systemInfo } = useSystemInfo();
 
@@ -25,7 +28,7 @@ export function DeviceList({ onSelect }: DeviceListProps) {
       {systemInfo && <SystemInfo info={systemInfo} />}
 
       <div>
-        <h2 className="mb-3 text-sm font-medium">Available USB Devices</h2>
+        <h2 className="mb-3 text-sm font-medium">Select a USB device</h2>
 
         {isLoading && (
           <p className="text-muted-foreground text-sm">Scanning for devices...</p>
@@ -45,12 +48,21 @@ export function DeviceList({ onSelect }: DeviceListProps) {
               <DeviceCard
                 key={device.serial}
                 device={device}
+                selected={selectedDevice?.serial === device.serial}
                 onSelect={() => onSelect(device)}
               />
             ))}
           </div>
         )}
       </div>
+
+      <Button
+        className="w-full"
+        disabled={!selectedDevice}
+        onClick={onNext}
+      >
+        Next
+      </Button>
     </div>
   );
 }

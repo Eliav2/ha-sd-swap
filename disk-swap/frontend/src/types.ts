@@ -41,18 +41,3 @@ export interface StageState {
 /** App screens */
 export type Screen = "device_select" | "confirm" | "progress" | "complete";
 
-/** App-level state */
-export interface AppState {
-  screen: Screen;
-  selectedDevice: Device | null;
-  stages: StageState[];
-}
-
-export type AppAction =
-  | { type: "SELECT_DEVICE"; device: Device }
-  | { type: "CONFIRM" }
-  | { type: "CANCEL" }
-  | { type: "UPDATE_STAGE"; stageName: StageName; status: StageStatus; progress: number }
-  | { type: "COMPLETE" }
-  | { type: "FAIL"; stageName: StageName }
-  | { type: "RESET" };
