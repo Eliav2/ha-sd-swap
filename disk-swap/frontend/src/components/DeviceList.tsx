@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ShieldAlert, ExternalLink } from "lucide-react";
 import type { Device } from "@/types";
 import { useDevices } from "@/hooks/use-devices";
 import { useSystemInfo } from "@/hooks/use-system-info";
@@ -27,6 +27,34 @@ export function DeviceList({ selectedDevice, onSelect, onNext }: DeviceListProps
       </div>
 
       {systemInfo && <SystemInfo info={systemInfo} />}
+
+      {systemInfo?.protected && (
+        <div className="rounded-lg border border-amber-500/50 bg-amber-50 p-4 dark:bg-amber-950/30">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                Protection Mode Enabled
+              </p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                Disk Swap needs protection mode disabled to access USB devices for flashing.
+              </p>
+              <a
+                href={`http://${systemInfo.ip_address}:8123/config/app/${systemInfo.addon_slug}/info`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-700 underline underline-offset-2 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100"
+              >
+                Open Disk Swap settings
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Toggle <strong>Protection mode</strong> off, then restart the app.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div>
         <div className="mb-3 flex items-center justify-between">
@@ -69,7 +97,7 @@ export function DeviceList({ selectedDevice, onSelect, onNext }: DeviceListProps
 
       <Button
         className="w-full"
-        disabled={!selectedDevice}
+        disabled={!selectedDevice || systemInfo?.protected}
         onClick={onNext}
       >
         Next

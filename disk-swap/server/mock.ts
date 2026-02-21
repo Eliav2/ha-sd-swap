@@ -56,5 +56,7 @@ export async function getSystemInfo() {
     ip_address: "192.168.1.100",
     free_space_bytes: 24_696_061_952,
     free_space_human: "23.0 GB",
+    protected: false,
+    addon_slug: "64504a20_disk-swap",
   };
 }

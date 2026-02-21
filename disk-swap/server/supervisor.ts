@@ -126,6 +126,12 @@ export async function pollJob(jobId: string): Promise<SupervisorJobStatus> {
   return supervisorGet<SupervisorJobStatus>(`/jobs/${jobId}`);
 }
 
+/** Get addon self-info (includes protected mode status). */
+export async function getAddonInfo(): Promise<{ protected: boolean; slug: string }> {
+  const data = await supervisorGet<{ protected: boolean; slug: string }>("/addons/self/info");
+  return { protected: data.protected, slug: data.slug };
+}
+
 export async function getInfo(): Promise<SupervisorInfo> {
   return supervisorGet<SupervisorInfo>("/info");
 }
@@ -165,11 +171,12 @@ function extractIpAddress(network: NetworkInfo): string {
 
 /** Aggregate system info from multiple Supervisor endpoints */
 export async function getSystemInfo() {
-  const [info, osInfo, hostInfo, networkInfo] = await Promise.all([
+  const [info, osInfo, hostInfo, networkInfo, addonInfo] = await Promise.all([
     getInfo(),
     getOsInfo(),
     getHostInfo(),
     getNetworkInfo(),
+    getAddonInfo(),
   ]);
 
   return {
@@ -180,5 +187,7 @@ export async function getSystemInfo() {
     ip_address: extractIpAddress(networkInfo),
     free_space_bytes: Math.round(hostInfo.disk_free * 1024 ** 3),
     free_space_human: formatBytes(Math.round(hostInfo.disk_free * 1024 ** 3)),
+    protected: addonInfo.protected,
+    addon_slug: addonInfo.slug,
   };
 }

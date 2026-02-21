@@ -24,6 +24,8 @@ export interface SystemInfoResponse {
   ip_address: string;
   free_space_bytes: number;
   free_space_human: string;
+  protected: boolean;
+  addon_slug: string;
 }
 
 /** HA backup entry from GET api/backups */
