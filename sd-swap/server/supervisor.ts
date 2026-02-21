@@ -25,6 +25,8 @@ const MACHINE_TO_SLUG: Record<string, string> = {
   "khadas-vim3": "khadas-vim3",
   "green": "green",
   "yellow": "yellow",
+  "qemuarm-64": "generic-aarch64",
+  "qemux86-64": "generic-x86-64",
 };
 
 export function machineToBoardSlug(machine: string): string {
