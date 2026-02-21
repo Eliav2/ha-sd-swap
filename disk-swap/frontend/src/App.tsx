@@ -1,7 +1,8 @@
+import { useEffect } from "react";
 import { useStore } from "@tanstack/react-store";
 import { appStore, actions } from "@/store";
 import { useCloneProgress } from "@/hooks/use-clone-progress";
-import { startClone } from "@/lib/api";
+import { fetchCurrentJob, startClone } from "@/lib/api";
 import { DeviceList } from "@/components/DeviceList";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CloneProgress } from "@/components/CloneProgress";
@@ -11,6 +12,13 @@ export default function App() {
   const screen = useStore(appStore, (s) => s.screen);
   const selectedDevice = useStore(appStore, (s) => s.selectedDevice);
   const stages = useStore(appStore, (s) => s.stages);
+
+  // On mount, check for an active/completed/failed job and resume if found
+  useEffect(() => {
+    fetchCurrentJob().then((job) => {
+      if (job) actions.resumeJob(job);
+    }).catch(() => {});
+  }, []);
 
   useCloneProgress(screen === "progress");
 

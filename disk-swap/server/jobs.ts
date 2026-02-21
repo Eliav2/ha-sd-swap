@@ -1,4 +1,4 @@
-import type { Job, StageName, StageStatus, WsMessage } from "../shared/types.ts";
+import type { Device, Job, StageName, StageStatus, WsMessage } from "../shared/types.ts";
 
 // --- State ---
 let currentJob: Job | null = null;
@@ -13,7 +13,7 @@ export function isLocked(): boolean {
 }
 
 /** Create a new clone job. Throws if a job is already in progress. */
-export function createJob(devicePath: string): Job {
+export function createJob(device: Device): Job {
   if (isLocked()) {
     throw new Error("A clone operation is already in progress.");
   }
@@ -21,7 +21,7 @@ export function createJob(devicePath: string): Job {
   currentJob = {
     id: crypto.randomUUID().slice(0, 8),
     status: "in_progress",
-    device: devicePath,
+    device,
     stages: {
       backup: { name: "backup", status: "pending", progress: 0 },
       download: { name: "download", status: "pending", progress: 0 },

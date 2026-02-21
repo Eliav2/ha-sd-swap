@@ -1,5 +1,5 @@
 import { Store } from "@tanstack/react-store";
-import type { Device, Screen, StageState } from "@/types";
+import type { Device, Job, Screen, StageState } from "@/types";
 
 export interface AppState {
   screen: Screen;
@@ -56,6 +56,26 @@ export const actions = {
 
   complete() {
     appStore.setState((s) => ({ ...s, screen: "complete" as const }));
+  },
+
+  resumeJob(job: Job) {
+    const screen: Screen =
+      job.status === "completed" ? "complete" : "progress";
+
+    const stages: StageState[] = initialStages.map((init) => {
+      const jobStage = job.stages[init.name];
+      return {
+        ...init,
+        status: jobStage?.status ?? "pending",
+        progress: jobStage?.progress ?? 0,
+      };
+    });
+
+    appStore.setState(() => ({
+      screen,
+      selectedDevice: job.device,
+      stages,
+    }));
   },
 
   reset() {

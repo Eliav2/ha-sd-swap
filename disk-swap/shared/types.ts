@@ -85,7 +85,7 @@ export type JobStatus = "in_progress" | "completed" | "failed";
 export interface Job {
   id: string;
   status: JobStatus;
-  device: string;
+  device: Device;
   stages: Record<StageName, StageState>;
   error: string | null;
   createdAt: number;

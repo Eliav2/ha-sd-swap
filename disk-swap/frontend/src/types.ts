@@ -44,6 +44,19 @@ export type WsMessage =
   | { type: "error"; stage: StageName; message: string }
   | { type: "done" };
 
+/** Job status */
+export type JobStatus = "in_progress" | "completed" | "failed";
+
+/** Clone job returned by GET api/jobs/current */
+export interface Job {
+  id: string;
+  status: JobStatus;
+  device: Device;
+  stages: Record<StageName, { name: StageName; status: StageStatus; progress: number }>;
+  error: string | null;
+  createdAt: number;
+}
+
 /** App screens */
 export type Screen = "device_select" | "confirm" | "progress" | "complete";
 

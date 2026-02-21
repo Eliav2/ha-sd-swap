@@ -1,5 +1,5 @@
 import { statfsSync } from "node:fs";
-import type { Job, StageName } from "../shared/types.ts";
+import type { Device, Job, StageName } from "../shared/types.ts";
 import {
   createJob,
   updateStage,
@@ -34,8 +34,8 @@ let boardSlug = "";
 let osVersion = "";
 let localImagePath = "";
 
-/** Pre-flight checks. Throws descriptive errors on failure. */
-async function preflight(devicePath: string): Promise<void> {
+/** Pre-flight checks. Returns the validated Device. Throws on failure. */
+async function preflight(devicePath: string): Promise<Device> {
   if (!isDev) {
     const stat = statfsSync("/data");
     const freeBytes = stat.bfree * stat.bsize;
@@ -58,12 +58,13 @@ async function preflight(devicePath: string): Promise<void> {
       `Target device ${devicePath} not found or is not a safe USB target.`,
     );
   }
+  return target;
 }
 
 /** Run the full clone pipeline. Returns the job immediately; runs stages async. */
 export async function runClonePipeline(devicePath: string): Promise<Job> {
-  await preflight(devicePath);
-  const job = createJob(devicePath);
+  const device = await preflight(devicePath);
+  const job = createJob(device);
 
   // Fire-and-forget — progress goes via WebSocket
   (async () => {
