@@ -66,4 +66,21 @@ profile sd_swap flags=(attach_disconnected,mediate_deleted) {
   network inet dgram,
   network inet6 stream,
   network inet6 dgram,
+
+  # Bun runtime
+  /usr/local/bin/bun ix,
+  /usr/src/** r,
+
+  # Partition management (stages 3-4)
+  /usr/sbin/partprobe ix,
+  /usr/bin/mount ix,
+  /usr/bin/umount ix,
+  /usr/sbin/e2fsck ix,
+  /usr/bin/findmnt ix,
+
+  # Backup volume access
+  /backup/** rw,
+
+  # Temp mount point for new SD card
+  /mnt/newsd/** rw,
 }

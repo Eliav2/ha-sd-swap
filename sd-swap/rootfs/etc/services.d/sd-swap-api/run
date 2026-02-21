@@ -1,0 +1,8 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# SD Card Swap — API backend service
+# Starts the Bun/Hono HTTP server on port 8080
+# ==============================================================================
+
+bashio::log.info "Starting SD Swap API backend..."
+exec bun run /usr/src/server/index.ts
