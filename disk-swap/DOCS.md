@@ -33,5 +33,5 @@ device will destroy all data on it.
 
 ## Support
 
-- [GitHub Repository](https://github.com/eliav2/ha-disk-swap)
-- [Issue Tracker](https://github.com/eliav2/ha-disk-swap/issues)
+- [GitHub Repository](https://github.com/Eliav2/ha-disk-swap)
+- [Issue Tracker](https://github.com/Eliav2/ha-disk-swap/issues)

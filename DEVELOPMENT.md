@@ -22,7 +22,7 @@ This uses `DEV=1` to load mock USB devices and system info. No HA VM needed for 
 
 1. In HA UI: **Settings → Apps → App Store**
 2. Click the three-dot menu (top right) → **Repositories**
-3. Add: `https://github.com/eliav2/ha-disk-swap`
+3. Add: `https://github.com/Eliav2/ha-disk-swap`
 4. The "Disk Swap" app appears in the store
 5. Install it
 
