@@ -138,7 +138,7 @@ export function BackupSelect({ selectedBackup, onSelect, onNext, onBack }: Backu
           disabled={!selectedBackup}
           onClick={onNext}
         >
-          Next
+          Start Clone
         </Button>
       </div>
     </div>

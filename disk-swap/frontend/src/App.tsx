@@ -26,9 +26,9 @@ export default function App() {
 
   useCloneProgress(screen === "progress");
 
-  async function handleConfirm() {
+  async function handleStart() {
     if (!selectedDevice) return;
-    actions.confirm(systemInfo);
+    actions.startClone(systemInfo);
     const backupSlug =
       selectedBackup?.type === "existing" ? selectedBackup.slug : undefined;
     try {
@@ -48,20 +48,20 @@ export default function App() {
         />
       )}
 
+      {screen === "confirm" && selectedDevice && (
+        <ConfirmDialog
+          device={selectedDevice}
+          onConfirm={actions.confirmErase}
+          onCancel={actions.cancel}
+        />
+      )}
+
       {screen === "backup_select" && (
         <BackupSelect
           selectedBackup={selectedBackup}
           onSelect={actions.selectBackup}
-          onNext={actions.confirmBackup}
-          onBack={actions.cancel}
-        />
-      )}
-
-      {screen === "confirm" && selectedDevice && (
-        <ConfirmDialog
-          device={selectedDevice}
-          onConfirm={handleConfirm}
-          onCancel={actions.cancel}
+          onNext={handleStart}
+          onBack={actions.backToDeviceSelect}
         />
       )}
 

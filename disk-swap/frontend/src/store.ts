@@ -72,6 +72,11 @@ export const actions = {
   },
 
   next() {
+    appStore.setState((s) => ({ ...s, screen: "confirm" as const }));
+  },
+
+  /** After the erase warning, go to backup selection. */
+  confirmErase() {
     appStore.setState((s) => ({ ...s, screen: "backup_select" as const }));
   },
 
@@ -79,11 +84,8 @@ export const actions = {
     appStore.setState((s) => ({ ...s, selectedBackup: backup }));
   },
 
-  confirmBackup() {
-    appStore.setState((s) => ({ ...s, screen: "confirm" as const }));
-  },
-
-  confirm(systemInfo?: SystemInfoResponse | null) {
+  /** Start the pipeline after backup is selected. */
+  startClone(systemInfo?: SystemInfoResponse | null) {
     appStore.setState((s) => {
       const backup = s.selectedBackup ?? { type: "new" as const };
       return {
@@ -99,6 +101,15 @@ export const actions = {
       ...s,
       screen: "device_select" as const,
       selectedDevice: null,
+      selectedBackup: null,
+    }));
+  },
+
+  /** Go back from backup_select to confirm (device selection). */
+  backToDeviceSelect() {
+    appStore.setState((s) => ({
+      ...s,
+      screen: "device_select" as const,
       selectedBackup: null,
     }));
   },
