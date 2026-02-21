@@ -1,5 +1,5 @@
 name: Disk Swap
-version: "0.4.3"
+version: "0.4.4"
 slug: disk-swap
 description: "Flash HA OS to any USB device — directly from Home Assistant, no PC required."
 url: "https://github.com/Eliav2/ha-disk-swap"
@@ -42,8 +42,9 @@ map:
     read_only: false
 tmpfs: true
 
-# Backup
-backup: cold
+# Backup — must be "hot" so the Supervisor doesn't stop us
+# during the full backup our own clone pipeline triggers
+backup: hot
 
 # No user-configurable options yet
 options: {}
