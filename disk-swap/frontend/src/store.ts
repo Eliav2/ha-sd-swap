@@ -1,24 +1,70 @@
 import { Store } from "@tanstack/react-store";
-import type { Device, Job, Screen, StageState } from "@/types";
+import type { BackupSelection, Device, Job, Screen, StageState, SystemInfoResponse } from "@/types";
 
 export interface AppState {
   screen: Screen;
   selectedDevice: Device | null;
+  selectedBackup: BackupSelection | null;
   stages: StageState[];
 }
 
-const initialStages: StageState[] = [
-  { name: "backup", label: "Create backup", status: "pending", progress: 0 },
-  { name: "download", label: "Download HA OS image", status: "pending", progress: 0 },
-  { name: "flash", label: "Flash to device", status: "pending", progress: 0 },
-  { name: "inject", label: "Inject backup", status: "pending", progress: 0 },
+const defaultStages: StageState[] = [
+  { name: "backup", label: "Backup", description: "", status: "pending", progress: 0 },
+  { name: "download", label: "Download HA OS image", description: "", status: "pending", progress: 0 },
+  { name: "flash", label: "Flash to device", description: "", status: "pending", progress: 0 },
+  { name: "inject", label: "Inject backup", description: "", status: "pending", progress: 0 },
 ];
 
 export const appStore = new Store<AppState>({
   screen: "device_select",
   selectedDevice: null,
-  stages: initialStages,
+  selectedBackup: null,
+  stages: defaultStages,
 });
+
+/** Build stages with dynamic descriptions based on user selections and system info. */
+function buildStages(
+  backup: BackupSelection,
+  systemInfo?: SystemInfoResponse | null,
+): StageState[] {
+  const version = systemInfo?.os_version ?? "latest";
+  const board = systemInfo?.board_slug ?? "your device";
+  const releaseUrl = `https://github.com/home-assistant/operating-system/releases/tag/${version}`;
+
+  return [
+    {
+      name: "backup",
+      label: "Backup",
+      description: backup.type === "new"
+        ? "Creates a full backup of your HA configuration, apps, and database."
+        : `Using existing backup "${backup.name}".`,
+      status: "pending",
+      progress: 0,
+    },
+    {
+      name: "download",
+      label: "Download HA OS image",
+      description: `Downloads HA OS ${version} for ${board}.`,
+      link: { text: "View release", url: releaseUrl },
+      status: "pending",
+      progress: 0,
+    },
+    {
+      name: "flash",
+      label: "Flash to device",
+      description: "Writes the OS image to the target USB device.",
+      status: "pending",
+      progress: 0,
+    },
+    {
+      name: "inject",
+      label: "Inject backup",
+      description: "Copies backup to the new device for automatic restore on first boot.",
+      status: "pending",
+      progress: 0,
+    },
+  ];
+}
 
 export const actions = {
   selectDevice(device: Device) {
@@ -26,15 +72,26 @@ export const actions = {
   },
 
   next() {
+    appStore.setState((s) => ({ ...s, screen: "backup_select" as const }));
+  },
+
+  selectBackup(backup: BackupSelection) {
+    appStore.setState((s) => ({ ...s, selectedBackup: backup }));
+  },
+
+  confirmBackup() {
     appStore.setState((s) => ({ ...s, screen: "confirm" as const }));
   },
 
-  confirm() {
-    appStore.setState((s) => ({
-      ...s,
-      screen: "progress" as const,
-      stages: initialStages.map((st) => ({ ...st })),
-    }));
+  confirm(systemInfo?: SystemInfoResponse | null) {
+    appStore.setState((s) => {
+      const backup = s.selectedBackup ?? { type: "new" as const };
+      return {
+        ...s,
+        screen: "progress" as const,
+        stages: buildStages(backup, systemInfo),
+      };
+    });
   },
 
   cancel() {
@@ -42,6 +99,7 @@ export const actions = {
       ...s,
       screen: "device_select" as const,
       selectedDevice: null,
+      selectedBackup: null,
     }));
   },
 
@@ -62,7 +120,7 @@ export const actions = {
     const screen: Screen =
       job.status === "completed" ? "complete" : "progress";
 
-    const stages: StageState[] = initialStages.map((init) => {
+    const stages: StageState[] = defaultStages.map((init) => {
       const jobStage = job.stages[init.name];
       return {
         ...init,
@@ -74,6 +132,7 @@ export const actions = {
     appStore.setState(() => ({
       screen,
       selectedDevice: job.device,
+      selectedBackup: null,
       stages,
     }));
   },
@@ -82,7 +141,8 @@ export const actions = {
     appStore.setState(() => ({
       screen: "device_select" as const,
       selectedDevice: null,
-      stages: initialStages.map((st) => ({ ...st })),
+      selectedBackup: null,
+      stages: defaultStages.map((st) => ({ ...st })),
     }));
   },
 };

@@ -33,6 +33,9 @@ export function useCloneProgress(active: boolean) {
         case "done":
           actions.complete();
           break;
+        case "cancelled":
+          actions.reset();
+          break;
       }
     };
 

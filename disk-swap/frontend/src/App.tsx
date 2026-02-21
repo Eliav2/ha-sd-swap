@@ -2,8 +2,10 @@ import { useEffect } from "react";
 import { useStore } from "@tanstack/react-store";
 import { appStore, actions } from "@/store";
 import { useCloneProgress } from "@/hooks/use-clone-progress";
+import { useSystemInfo } from "@/hooks/use-system-info";
 import { fetchCurrentJob, startClone } from "@/lib/api";
 import { DeviceList } from "@/components/DeviceList";
+import { BackupSelect } from "@/components/BackupSelect";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CloneProgress } from "@/components/CloneProgress";
 import { SwapComplete } from "@/components/SwapComplete";
@@ -11,7 +13,9 @@ import { SwapComplete } from "@/components/SwapComplete";
 export default function App() {
   const screen = useStore(appStore, (s) => s.screen);
   const selectedDevice = useStore(appStore, (s) => s.selectedDevice);
+  const selectedBackup = useStore(appStore, (s) => s.selectedBackup);
   const stages = useStore(appStore, (s) => s.stages);
+  const { data: systemInfo } = useSystemInfo();
 
   // On mount, check for an active/completed/failed job and resume if found
   useEffect(() => {
@@ -24,9 +28,11 @@ export default function App() {
 
   async function handleConfirm() {
     if (!selectedDevice) return;
-    actions.confirm();
+    actions.confirm(systemInfo);
+    const backupSlug =
+      selectedBackup?.type === "existing" ? selectedBackup.slug : undefined;
     try {
-      await startClone(selectedDevice.path);
+      await startClone(selectedDevice.path, backupSlug);
     } catch {
       // WebSocket will report actual stage errors
     }
@@ -39,6 +45,15 @@ export default function App() {
           selectedDevice={selectedDevice}
           onSelect={actions.selectDevice}
           onNext={actions.next}
+        />
+      )}
+
+      {screen === "backup_select" && (
+        <BackupSelect
+          selectedBackup={selectedBackup}
+          onSelect={actions.selectBackup}
+          onNext={actions.confirmBackup}
+          onBack={actions.cancel}
         />
       )}
 

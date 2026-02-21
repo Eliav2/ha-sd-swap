@@ -62,6 +62,13 @@ export function failJob(stage: StageName, message: string): void {
   broadcast({ type: "error", stage, message });
 }
 
+/** Clear the current job (used by cancel). Broadcasts cancellation. */
+export function clearJob(): void {
+  if (!currentJob) return;
+  currentJob = null;
+  broadcast({ type: "cancelled" });
+}
+
 /** Subscribe to job updates. Returns an unsubscribe function. */
 export function subscribe(cb: (msg: WsMessage) => void): () => void {
   subscribers.add(cb);

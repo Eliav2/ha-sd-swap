@@ -26,6 +26,25 @@ export interface SystemInfoResponse {
   free_space_human: string;
 }
 
+/** HA backup entry from GET api/backups */
+export interface Backup {
+  slug: string;
+  name: string;
+  date: string;
+  type: "full" | "partial";
+  size: number; // MB float
+}
+
+/** Response shape for GET api/backups */
+export interface BackupsResponse {
+  backups: Backup[];
+}
+
+/** User's backup choice for the clone pipeline */
+export type BackupSelection =
+  | { type: "new" }
+  | { type: "existing"; slug: string; name: string };
+
 /** Clone job stages */
 export type StageName = "backup" | "download" | "flash" | "inject";
 
@@ -34,15 +53,18 @@ export type StageStatus = "pending" | "in_progress" | "completed" | "failed";
 export interface StageState {
   name: StageName;
   label: string;
+  description: string;
   status: StageStatus;
   progress: number; // 0–100
+  link?: { text: string; url: string };
 }
 
 /** WebSocket messages (server → client) */
 export type WsMessage =
   | { type: "stage_update"; stage: StageName; status: StageStatus; progress: number }
   | { type: "error"; stage: StageName; message: string }
-  | { type: "done" };
+  | { type: "done" }
+  | { type: "cancelled" };
 
 /** Job status */
 export type JobStatus = "in_progress" | "completed" | "failed";
@@ -58,5 +80,4 @@ export interface Job {
 }
 
 /** App screens */
-export type Screen = "device_select" | "confirm" | "progress" | "complete";
-
+export type Screen = "device_select" | "backup_select" | "confirm" | "progress" | "complete";

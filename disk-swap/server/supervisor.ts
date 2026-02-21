@@ -5,6 +5,7 @@ import type {
   NetworkInfo,
   BackupJobResponse,
   SupervisorJobStatus,
+  SupervisorBackup,
 } from "../shared/types.ts";
 
 const SUPERVISOR_URL = "http://supervisor";
@@ -102,6 +103,12 @@ async function supervisorPost<T>(path: string, body: unknown): Promise<T> {
   }
 
   return json.data;
+}
+
+/** List all existing backups from the Supervisor. */
+export async function listBackups(): Promise<SupervisorBackup[]> {
+  const data = await supervisorGet<{ backups: SupervisorBackup[] }>("/backups");
+  return data.backups;
 }
 
 /** Create a full backup in background mode. Returns the job_id for polling. */

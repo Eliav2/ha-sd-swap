@@ -1,4 +1,4 @@
-import type { DevicesResponse, Job, SystemInfoResponse } from "@/types";
+import type { BackupsResponse, DevicesResponse, Job, SystemInfoResponse } from "@/types";
 
 /** All paths are relative (no leading /) for HA ingress compatibility. */
 
@@ -14,13 +14,24 @@ export async function fetchSystemInfo(): Promise<SystemInfoResponse> {
   return res.json();
 }
 
-export async function startClone(devicePath: string): Promise<void> {
+export async function fetchBackups(): Promise<BackupsResponse> {
+  const res = await fetch("api/backups");
+  if (!res.ok) throw new Error(`Failed to fetch backups: ${res.status}`);
+  return res.json();
+}
+
+export async function startClone(devicePath: string, backupSlug?: string): Promise<void> {
   const res = await fetch("api/start-clone", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ device: devicePath }),
+    body: JSON.stringify({ device: devicePath, backup_slug: backupSlug }),
   });
   if (!res.ok) throw new Error(`Failed to start clone: ${res.status}`);
+}
+
+export async function cancelClone(): Promise<void> {
+  const res = await fetch("api/cancel-clone", { method: "POST" });
+  if (!res.ok) throw new Error(`Failed to cancel clone: ${res.status}`);
 }
 
 export async function fetchCurrentJob(): Promise<Job | null> {

@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import { upgradeWebSocket, websocket } from "hono/bun";
 import { getCurrentJob, subscribe } from "./jobs.ts";
-import { runClonePipeline } from "./clone.ts";
+import { runClonePipeline, cancelClone } from "./clone.ts";
 
 const isDev = process.env.DEV === "1";
 
@@ -18,7 +18,7 @@ const { listUsbDevices } = isDev
   ? await import("./mock.ts")
   : await import("./devices.ts");
 
-const { getSystemInfo } = isDev
+const { getSystemInfo, listBackups: listBackupsFn } = isDev
   ? await import("./mock.ts")
   : await import("./supervisor.ts");
 
@@ -67,21 +67,41 @@ app.get("/api/system-info", async (c) => {
   }
 });
 
+// --- Backups API ---
+
+app.get("/api/backups", async (c) => {
+  try {
+    const backups = await listBackupsFn();
+    return c.json({ backups });
+  } catch (err) {
+    console.error("Error listing backups:", err);
+    return c.json(
+      { error: "Failed to list backups", detail: String(err) },
+      500,
+    );
+  }
+});
+
 // --- Clone API ---
 
 app.post("/api/start-clone", async (c) => {
   try {
-    const body = await c.req.json<{ device: string }>();
+    const body = await c.req.json<{ device: string; backup_slug?: string }>();
     if (!body.device) {
       return c.json({ error: "Missing 'device' field" }, 400);
     }
 
-    const job = await runClonePipeline(body.device);
+    const job = await runClonePipeline(body.device, body.backup_slug);
     return c.json({ job_id: job.id });
   } catch (err) {
     console.error("Start clone failed:", err);
     return c.json({ error: String(err) }, 400);
   }
+});
+
+app.post("/api/cancel-clone", (c) => {
+  cancelClone();
+  return c.json({ ok: true });
 });
 
 app.get("/api/jobs/current", (c) => {

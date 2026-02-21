@@ -1,4 +1,4 @@
-import type { Device } from "../shared/types.ts";
+import type { Device, SupervisorBackup } from "../shared/types.ts";
 
 /** Mock USB devices for local development */
 export async function listUsbDevices(): Promise<Device[]> {
@@ -22,6 +22,26 @@ export async function listUsbDevices(): Promise<Device[]> {
       model: "EVO Select",
       tran: "usb",
       serial: "FAKE002",
+    },
+  ];
+}
+
+/** Mock backups for local development */
+export async function listBackups(): Promise<SupervisorBackup[]> {
+  return [
+    {
+      slug: "abc12345",
+      name: "Full backup 2026-02-20",
+      date: "2026-02-20T10:30:00+00:00",
+      type: "full",
+      size: 0.45,
+    },
+    {
+      slug: "def67890",
+      name: "disk-swap-clone-2026-02-18",
+      date: "2026-02-18T14:15:00+00:00",
+      type: "full",
+      size: 0.38,
     },
   ];
 }

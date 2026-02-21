@@ -1,3 +1,4 @@
+import { ExternalLink } from "lucide-react";
 import type { StageState } from "@/types";
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,25 @@ export function StageRow({ stage }: StageRowProps) {
         <span className="text-sm font-medium">{stage.label}</span>
         <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
       </div>
+      {stage.description && (
+        <p className="text-muted-foreground text-xs">
+          {stage.description}
+          {stage.link && (
+            <>
+              {" "}
+              <a
+                href={stage.link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline inline-flex items-center gap-0.5"
+              >
+                {stage.link.text}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </>
+          )}
+        </p>
+      )}
       <Progress value={stage.progress}>
         <ProgressLabel className="sr-only">{stage.label}</ProgressLabel>
         <ProgressValue />

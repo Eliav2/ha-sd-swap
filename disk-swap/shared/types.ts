@@ -95,11 +95,22 @@ export interface Job {
 export type WsMessage =
   | { type: "stage_update"; stage: StageName; status: StageStatus; progress: number }
   | { type: "error"; stage: StageName; message: string }
-  | { type: "done" };
+  | { type: "done" }
+  | { type: "cancelled" };
 
 /** POST /api/start-clone request body */
 export interface StartCloneRequest {
   device: string;
+  backup_slug?: string;
+}
+
+/** Supervisor backup entry from GET /backups */
+export interface SupervisorBackup {
+  slug: string;
+  name: string;
+  date: string;
+  type: "full" | "partial";
+  size: number; // MB float from Supervisor
 }
 
 /** Supervisor backup creation response */

@@ -1,6 +1,10 @@
+import { useState } from "react";
 import type { Device, StageState } from "@/types";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { StageRow } from "@/components/StageRow";
+import { cancelClone } from "@/lib/api";
+import { actions } from "@/store";
 
 interface CloneProgressProps {
   device: Device;
@@ -8,6 +12,25 @@ interface CloneProgressProps {
 }
 
 export function CloneProgress({ device, stages }: CloneProgressProps) {
+  const [cancelling, setCancelling] = useState(false);
+
+  // Disable cancel during flash/inject — dangerous to interrupt mid-write
+  const activeStage = stages.find((s) => s.status === "in_progress");
+  const isDangerous = activeStage?.name === "flash" || activeStage?.name === "inject";
+  const isFinished = stages.every(
+    (s) => s.status === "completed" || s.status === "failed",
+  );
+
+  async function handleCancel() {
+    setCancelling(true);
+    try {
+      await cancelClone();
+      actions.reset();
+    } catch {
+      setCancelling(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -29,6 +52,21 @@ export function CloneProgress({ device, stages }: CloneProgressProps) {
           ))}
         </CardContent>
       </Card>
+
+      {!isFinished && (
+        <Button
+          variant="outline"
+          className="w-full"
+          disabled={isDangerous || cancelling}
+          onClick={handleCancel}
+        >
+          {cancelling
+            ? "Cancelling..."
+            : isDangerous
+              ? "Cannot cancel during write"
+              : "Cancel"}
+        </Button>
+      )}
     </div>
   );
 }

@@ -22,8 +22,9 @@ export async function downloadImage(
   url: string,
   destPath: string,
   progressCb: (percent: number) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
-  const res = await fetch(url, { redirect: "follow" });
+  const res = await fetch(url, { redirect: "follow", signal });
   if (!res.ok) {
     throw new Error(`Download failed: HTTP ${res.status} from ${url}`);
   }
@@ -82,9 +83,10 @@ export async function isCachedImageValid(
 ): Promise<boolean> {
   if (!(await Bun.file(localPath).exists())) return false;
   try {
-    const verified = await verifyChecksum(localPath, sha256Url);
-    // If no checksum available, treat cache as stale to force re-download
-    return verified;
+    await verifyChecksum(localPath, sha256Url);
+    // Checksum matched (true) or unavailable/404 (false) — trust cache either way.
+    // Only a checksum mismatch throws, which is caught below.
+    return true;
   } catch {
     return false;
   }
