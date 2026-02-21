@@ -1,5 +1,5 @@
 name: Disk Swap
-version: "0.4.4"
+version: "0.4.5"
 slug: disk-swap
 description: "Flash HA OS to any USB device — directly from Home Assistant, no PC required."
 url: "https://github.com/Eliav2/ha-disk-swap"
@@ -26,11 +26,10 @@ panel_icon: "mdi:micro-sd"
 panel_title: "Disk Swap"
 
 # Supervisor API access
-# hassio_role: backup gives access to all /backups/* endpoints (create, download, upload, restore)
-# as well as all /*/info read endpoints.
-# manager role is needed if we later want /host/reboot or /os/* write endpoints.
+# manager role: access to /backups/*, /jobs/* (for polling backup progress),
+# /host/*, /os/*, and all read endpoints.
 hassio_api: true
-hassio_role: backup
+hassio_role: manager
 homeassistant_api: false
 auth_api: false
 
