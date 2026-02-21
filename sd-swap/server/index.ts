@@ -1,8 +1,11 @@
 import { Hono } from "hono";
+import { serveStatic } from "hono/bun";
 import { listUsbDevices } from "./devices.ts";
 import { getSystemInfo } from "./supervisor.ts";
 
 const app = new Hono();
+
+// --- API routes ---
 
 app.get("/api/health", (c) => {
   return c.json({ status: "ok" });
@@ -39,11 +42,17 @@ app.onError((err, c) => {
   return c.json({ error: "Internal server error" }, 500);
 });
 
-const PORT = 8080;
+// --- Static files (web UI) ---
+
+app.use("*", serveStatic({ root: "/var/www" }));
+// SPA fallback: serve index.html for any unmatched route
+app.get("*", serveStatic({ path: "/var/www/index.html" }));
+
+const PORT = Number(process.env.INGRESS_PORT) || 8099;
 
 export default {
   port: PORT,
   fetch: app.fetch,
 };
 
-console.log(`SD Swap API server listening on port ${PORT}`);
+console.log(`SD Swap server listening on port ${PORT}`);

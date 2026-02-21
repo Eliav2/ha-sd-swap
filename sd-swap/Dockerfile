@@ -5,7 +5,6 @@ FROM $BUILD_FROM
 #   util-linux: lsblk, findmnt, blkid, blockdev
 #   coreutils:  dd with conv=fdatasync
 #   xz/gzip:    decompress HA OS images
-#   nginx:      ingress web server
 #   pv:         progress during dd operations
 #   jq:         JSON processing
 #   e2fsprogs:  ext4 tools for backup injection
@@ -16,7 +15,6 @@ RUN apk add --no-cache \
     coreutils \
     xz \
     gzip \
-    nginx \
     pv \
     jq \
     e2fsprogs \
@@ -33,14 +31,8 @@ COPY shared/ /usr/src/shared/
 COPY package.json bun.lock /usr/src/
 RUN cd /usr/src && bun install --frozen-lockfile --production
 
-# Runtime directories (nginx needs these writable at runtime)
-RUN mkdir -p /mnt/newsd /run/nginx \
-    /var/lib/nginx/tmp/client_body \
-    /var/lib/nginx/tmp/proxy \
-    /var/lib/nginx/tmp/fastcgi \
-    /var/lib/nginx/logs \
-    /var/log/nginx \
-    && chmod -R 777 /var/lib/nginx /var/log/nginx /run/nginx
+# Runtime directories
+RUN mkdir -p /mnt/newsd
 
-# Copy root filesystem overlay (s6 services, nginx config, static web UI)
+# Copy root filesystem overlay (s6 services, static web UI)
 COPY rootfs /
