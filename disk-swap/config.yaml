@@ -1,5 +1,5 @@
 name: Disk Swap
-version: "0.5.4"
+version: "0.5.5"
 slug: disk-swap
 description: "Flash HA OS to any USB device — directly from Home Assistant, no PC required."
 url: "https://github.com/Eliav2/ha-disk-swap"
@@ -17,6 +17,12 @@ timeout: 300
 # supports static paths (no wildcards).
 full_access: true
 udev: true
+
+# Linux capabilities needed for block device I/O (dd write)
+# and mount operations (inject stage).
+privileged:
+  - SYS_RAWIO
+  - SYS_ADMIN
 
 # Ingress web UI
 ingress: true
