@@ -1,3 +1,4 @@
+import { RefreshCw } from "lucide-react";
 import type { Device } from "@/types";
 import { useDevices } from "@/hooks/use-devices";
 import { useSystemInfo } from "@/hooks/use-system-info";
@@ -13,7 +14,7 @@ interface DeviceListProps {
 }
 
 export function DeviceList({ selectedDevice, onSelect, onNext }: DeviceListProps) {
-  const { data: devices, isLoading, error } = useDevices();
+  const { data: devices, isLoading, error, refetch, isFetching } = useDevices();
   const { data: systemInfo } = useSystemInfo();
 
   return (
@@ -28,7 +29,17 @@ export function DeviceList({ selectedDevice, onSelect, onNext }: DeviceListProps
       {systemInfo && <SystemInfo info={systemInfo} />}
 
       <div>
-        <h2 className="mb-3 text-sm font-medium">Select a USB device</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-medium">Select a USB device</h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => refetch()}
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
 
         {isLoading && (
           <p className="text-muted-foreground text-sm">Scanning for devices...</p>
