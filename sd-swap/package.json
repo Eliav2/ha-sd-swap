@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "bun run server/index.ts",
-    "dev": "bun --watch run server/index.ts"
+    "dev": "DEV=1 bun --watch run server/index.ts"
   },
   "dependencies": {
     "hono": "^4.7.0"

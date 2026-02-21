@@ -1,7 +1,15 @@
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
-import { listUsbDevices } from "./devices.ts";
-import { getSystemInfo } from "./supervisor.ts";
+
+const isDev = process.env.DEV === "1";
+
+const { listUsbDevices } = isDev
+  ? await import("./mock.ts")
+  : await import("./devices.ts");
+
+const { getSystemInfo } = isDev
+  ? await import("./mock.ts")
+  : await import("./supervisor.ts");
 
 const app = new Hono();
 
@@ -44,9 +52,9 @@ app.onError((err, c) => {
 
 // --- Static files (web UI) ---
 
-app.use("*", serveStatic({ root: "/var/www" }));
-// SPA fallback: serve index.html for any unmatched route
-app.get("*", serveStatic({ path: "/var/www/index.html" }));
+const staticRoot = isDev ? "./rootfs/var/www" : "/var/www";
+app.use("*", serveStatic({ root: staticRoot }));
+app.get("*", serveStatic({ path: `${staticRoot}/index.html` }));
 
 const PORT = Number(process.env.INGRESS_PORT) || 8099;
 
@@ -55,4 +63,6 @@ export default {
   fetch: app.fetch,
 };
 
-console.log(`SD Swap server listening on port ${PORT}`);
+console.log(
+  `SD Swap server listening on port ${PORT}${isDev ? " (dev mode)" : ""}`
+);
