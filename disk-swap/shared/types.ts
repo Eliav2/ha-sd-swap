@@ -67,3 +67,49 @@ export interface NetworkInfo {
     ipv4?: { address?: string[] };
   }>;
 }
+
+// --- Clone Job Types ---
+
+export type StageName = "backup" | "download" | "flash" | "inject";
+export type StageStatus = "pending" | "in_progress" | "completed" | "failed";
+
+export interface StageState {
+  name: StageName;
+  status: StageStatus;
+  progress: number; // 0–100
+}
+
+export type JobStatus = "in_progress" | "completed" | "failed";
+
+export interface Job {
+  id: string;
+  status: JobStatus;
+  device: string;
+  stages: Record<StageName, StageState>;
+  error: string | null;
+  createdAt: number;
+}
+
+/** WebSocket messages (server → client) */
+export type WsMessage =
+  | { type: "stage_update"; stage: StageName; status: StageStatus; progress: number }
+  | { type: "error"; stage: StageName; message: string }
+  | { type: "done" };
+
+/** POST /api/start-clone request body */
+export interface StartCloneRequest {
+  device: string;
+}
+
+/** Supervisor backup creation response */
+export interface BackupJobResponse {
+  job_id: string;
+}
+
+/** Supervisor job poll response */
+export interface SupervisorJobStatus {
+  done: boolean;
+  progress: number;
+  reference: string | null;
+  errors: string[];
+}

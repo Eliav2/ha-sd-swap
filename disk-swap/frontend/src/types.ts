@@ -27,7 +27,7 @@ export interface SystemInfoResponse {
 }
 
 /** Clone job stages */
-export type StageName = "download" | "flash" | "verify" | "migrate";
+export type StageName = "backup" | "download" | "flash" | "inject";
 
 export type StageStatus = "pending" | "in_progress" | "completed" | "failed";
 
@@ -37,6 +37,12 @@ export interface StageState {
   status: StageStatus;
   progress: number; // 0–100
 }
+
+/** WebSocket messages (server → client) */
+export type WsMessage =
+  | { type: "stage_update"; stage: StageName; status: StageStatus; progress: number }
+  | { type: "error"; stage: StageName; message: string }
+  | { type: "done" };
 
 /** App screens */
 export type Screen = "device_select" | "confirm" | "progress" | "complete";

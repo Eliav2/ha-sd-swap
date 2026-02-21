@@ -1,5 +1,8 @@
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
+import { upgradeWebSocket, websocket } from "hono/bun";
+import { getCurrentJob, subscribe } from "./jobs.ts";
+import { runClonePipeline } from "./clone.ts";
 
 const isDev = process.env.DEV === "1";
 
@@ -38,7 +41,7 @@ app.get("/api/devices", async (c) => {
     console.error("Error listing devices:", err);
     return c.json(
       { error: "Failed to list devices", detail: String(err) },
-      500
+      500,
     );
   }
 });
@@ -51,10 +54,89 @@ app.get("/api/system-info", async (c) => {
     console.error("Error fetching system info:", err);
     return c.json(
       { error: "Failed to fetch system info", detail: String(err) },
-      500
+      500,
     );
   }
 });
+
+// --- Clone API ---
+
+app.post("/api/start-clone", async (c) => {
+  try {
+    const body = await c.req.json<{ device: string }>();
+    if (!body.device) {
+      return c.json({ error: "Missing 'device' field" }, 400);
+    }
+
+    const job = await runClonePipeline(body.device);
+    return c.json({ job_id: job.id });
+  } catch (err) {
+    console.error("Start clone failed:", err);
+    return c.json({ error: String(err) }, 400);
+  }
+});
+
+app.get("/api/jobs/current", (c) => {
+  const job = getCurrentJob();
+  if (!job) {
+    return c.json({ error: "No active job" }, 404);
+  }
+  return c.json(job);
+});
+
+// --- WebSocket for real-time progress ---
+
+app.get(
+  "/ws/progress",
+  upgradeWebSocket(() => {
+    let unsubscribe: (() => void) | null = null;
+
+    return {
+      onOpen(_event, ws) {
+        // Send current job snapshot for reconnection
+        const job = getCurrentJob();
+        if (job) {
+          for (const stage of Object.values(job.stages)) {
+            ws.send(
+              JSON.stringify({
+                type: "stage_update",
+                stage: stage.name,
+                status: stage.status,
+                progress: stage.progress,
+              }),
+            );
+          }
+          if (job.status === "completed") {
+            ws.send(JSON.stringify({ type: "done" }));
+          } else if (job.status === "failed" && job.error) {
+            const failedStage = Object.values(job.stages).find(
+              (s) => s.status === "failed",
+            );
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                stage: failedStage?.name || "backup",
+                message: job.error,
+              }),
+            );
+          }
+        }
+
+        // Subscribe to future updates
+        unsubscribe = subscribe((msg) => {
+          try {
+            ws.send(JSON.stringify(msg));
+          } catch {
+            /* client disconnected */
+          }
+        });
+      },
+      onClose() {
+        unsubscribe?.();
+      },
+    };
+  }),
+);
 
 app.onError((err, c) => {
   console.error("Unhandled error:", err);
@@ -72,8 +154,9 @@ const PORT = Number(process.env.INGRESS_PORT) || 8099;
 export default {
   port: PORT,
   fetch: app.fetch,
+  websocket,
 };
 
 console.log(
-  `SD Swap server listening on port ${PORT}${isDev ? " (dev mode)" : ""}`
+  `Disk Swap server listening on port ${PORT}${isDev ? " (dev mode)" : ""}`,
 );

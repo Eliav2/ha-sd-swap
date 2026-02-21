@@ -3,6 +3,8 @@ import type {
   OsInfo,
   HostInfo,
   NetworkInfo,
+  BackupJobResponse,
+  SupervisorJobStatus,
 } from "../shared/types.ts";
 
 const SUPERVISOR_URL = "http://supervisor";
@@ -72,6 +74,48 @@ async function supervisorGet<T>(path: string): Promise<T> {
   }
 
   return json.data;
+}
+
+/** Generic Supervisor API POST — unwraps the { result, data } envelope */
+async function supervisorPost<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${SUPERVISOR_URL}${path}`, {
+    method: "POST",
+    headers: supervisorHeaders(),
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Supervisor POST ${path} returned ${res.status}: ${text}`);
+  }
+
+  const json = (await res.json()) as {
+    result: string;
+    data: T;
+    message?: string;
+  };
+
+  if (json.result !== "ok") {
+    throw new Error(
+      `Supervisor POST ${path} result="${json.result}": ${json.message ?? "unknown error"}`,
+    );
+  }
+
+  return json.data;
+}
+
+/** Create a full backup in background mode. Returns the job_id for polling. */
+export async function createFullBackup(): Promise<BackupJobResponse> {
+  const name = `disk-swap-clone-${new Date().toISOString().slice(0, 10)}`;
+  return supervisorPost<BackupJobResponse>("/backups/new/full", {
+    name,
+    background: true,
+  });
+}
+
+/** Poll a Supervisor job by ID. */
+export async function pollJob(jobId: string): Promise<SupervisorJobStatus> {
+  return supervisorGet<SupervisorJobStatus>(`/jobs/${jobId}`);
 }
 
 export async function getInfo(): Promise<SupervisorInfo> {
