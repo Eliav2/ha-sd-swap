@@ -44,12 +44,16 @@ export async function downloadImage(
   await writer.end();
 }
 
-/** Verify SHA256 checksum of the downloaded image. */
+/** Verify SHA256 checksum of the downloaded image. Returns false if skipped. */
 export async function verifyChecksum(
   localPath: string,
   sha256Url: string,
-): Promise<void> {
-  const sha256Res = await fetch(sha256Url);
+): Promise<boolean> {
+  const sha256Res = await fetch(sha256Url, { redirect: "follow" });
+  if (sha256Res.status === 404) {
+    console.log("[images] No checksum file available, skipping verification.");
+    return false;
+  }
   if (!sha256Res.ok) {
     throw new Error(`Failed to download checksum: HTTP ${sha256Res.status}`);
   }
@@ -68,6 +72,7 @@ export async function verifyChecksum(
       `Checksum mismatch: expected ${expectedHash}, got ${actualHash}`,
     );
   }
+  return true;
 }
 
 /** Check if a cached image already exists and passes checksum. */
@@ -77,8 +82,9 @@ export async function isCachedImageValid(
 ): Promise<boolean> {
   if (!(await Bun.file(localPath).exists())) return false;
   try {
-    await verifyChecksum(localPath, sha256Url);
-    return true;
+    const verified = await verifyChecksum(localPath, sha256Url);
+    // If no checksum available, treat cache as stale to force re-download
+    return verified;
   } catch {
     return false;
   }
