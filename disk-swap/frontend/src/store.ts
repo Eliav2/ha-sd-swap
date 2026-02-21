@@ -8,10 +8,10 @@ export interface AppState {
 }
 
 const initialStages: StageState[] = [
+  { name: "backup", label: "Create backup", status: "pending", progress: 0 },
   { name: "download", label: "Download HA OS image", status: "pending", progress: 0 },
   { name: "flash", label: "Flash to device", status: "pending", progress: 0 },
-  { name: "verify", label: "Verify written data", status: "pending", progress: 0 },
-  { name: "migrate", label: "Migrate configuration", status: "pending", progress: 0 },
+  { name: "inject", label: "Inject backup", status: "pending", progress: 0 },
 ];
 
 export const appStore = new Store<AppState>({

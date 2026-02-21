@@ -53,9 +53,15 @@ function formatSize(bytes: number): string {
 export async function listUsbDevices(): Promise<Device[]> {
   const bootDisk = await getBootDisk();
 
-  const lsblkOutput =
-    await $`lsblk --json -b -o NAME,SIZE,TYPE,TRAN,VENDOR,MODEL,SERIAL --nodeps`.json();
+  const result =
+    await $`lsblk --json -b -o NAME,SIZE,TYPE,TRAN,VENDOR,MODEL,SERIAL --nodeps`.nothrow().quiet();
 
+  if (result.exitCode !== 0) {
+    // lsblk can fail (exit 32) when no block devices are available
+    return [];
+  }
+
+  const lsblkOutput = result.json();
   const rawDevices: RawBlockDevice[] = lsblkOutput.blockdevices ?? [];
 
   return rawDevices
