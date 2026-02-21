@@ -92,6 +92,22 @@ export async function isCachedImageValid(
   }
 }
 
+/** Check if a cached image exists for the given board/version and return info. */
+export async function getImageCacheInfo(
+  boardSlug: string,
+  version: string,
+): Promise<{ cached: boolean; sizeBytes: number }> {
+  const path = imagePath(boardSlug, version);
+  const file = Bun.file(path);
+  if (!(await file.exists())) return { cached: false, sizeBytes: 0 };
+  return { cached: true, sizeBytes: file.size };
+}
+
+/** Delete the cached image for a given board/version. */
+export function discardCachedImage(boardSlug: string, version: string): void {
+  cleanupImage(imagePath(boardSlug, version));
+}
+
 /** Delete the downloaded image to free disk space. */
 export function cleanupImage(localPath: string): void {
   try {

@@ -11,6 +11,7 @@ import { serveStatic } from "hono/bun";
 import { upgradeWebSocket, websocket } from "hono/bun";
 import { getCurrentJob, subscribe } from "./jobs.ts";
 import { runClonePipeline, cancelClone } from "./clone.ts";
+import { getImageCacheInfo, discardCachedImage } from "./images.ts";
 
 const isDev = process.env.DEV === "1";
 
@@ -18,7 +19,7 @@ const { listUsbDevices } = isDev
   ? await import("./mock.ts")
   : await import("./devices.ts");
 
-const { getSystemInfo, listBackups: listBackupsFn } = isDev
+const { getSystemInfo: getSystemInfoFn, listBackups: listBackupsFn } = isDev
   ? await import("./mock.ts")
   : await import("./supervisor.ts");
 
@@ -56,7 +57,7 @@ app.get("/api/devices", async (c) => {
 
 app.get("/api/system-info", async (c) => {
   try {
-    const info = await getSystemInfo();
+    const info = await getSystemInfoFn();
     return c.json(info);
   } catch (err) {
     console.error("Error fetching system info:", err);
@@ -79,6 +80,40 @@ app.get("/api/backups", async (c) => {
       { error: "Failed to list backups", detail: String(err) },
       500,
     );
+  }
+});
+
+// --- Image Cache API ---
+
+app.get("/api/image-cache", async (c) => {
+  try {
+    const info = await getSystemInfoFn();
+    const { cached, sizeBytes } = await getImageCacheInfo(info.board_slug, info.os_version);
+    if (!cached) return c.json({ cached: false });
+    const sizeHuman = sizeBytes >= 1024 ** 3
+      ? `${(sizeBytes / 1024 ** 3).toFixed(1)} GB`
+      : `${Math.round(sizeBytes / 1024 ** 2)} MB`;
+    return c.json({
+      cached: true,
+      version: info.os_version,
+      board: info.board_slug,
+      size_bytes: sizeBytes,
+      size_human: sizeHuman,
+    });
+  } catch (err) {
+    console.error("Error checking image cache:", err);
+    return c.json({ error: "Failed to check image cache", detail: String(err) }, 500);
+  }
+});
+
+app.delete("/api/image-cache", async (c) => {
+  try {
+    const info = await getSystemInfoFn();
+    discardCachedImage(info.board_slug, info.os_version);
+    return c.json({ ok: true });
+  } catch (err) {
+    console.error("Error discarding image cache:", err);
+    return c.json({ error: "Failed to discard image cache", detail: String(err) }, 500);
   }
 });
 

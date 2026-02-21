@@ -1,5 +1,5 @@
 import { Store } from "@tanstack/react-store";
-import type { BackupSelection, Device, Job, Screen, StageState, SystemInfoResponse } from "@/types";
+import type { BackupSelection, Device, ImageCacheStatus, Job, Screen, StageState, SystemInfoResponse } from "@/types";
 
 export interface AppState {
   screen: Screen;
@@ -26,10 +26,16 @@ export const appStore = new Store<AppState>({
 function buildStages(
   backup: BackupSelection,
   systemInfo?: SystemInfoResponse | null,
+  imageCache?: ImageCacheStatus | null,
 ): StageState[] {
   const version = systemInfo?.os_version ?? "latest";
   const board = systemInfo?.board_slug ?? "your device";
   const releaseUrl = `https://github.com/home-assistant/operating-system/releases/tag/${version}`;
+  const isCached = imageCache?.cached === true;
+
+  const downloadDesc = isCached
+    ? `Using cached HA OS ${version} image for ${board}.`
+    : `Downloads HA OS ${version} for ${board}.`;
 
   return [
     {
@@ -43,8 +49,8 @@ function buildStages(
     },
     {
       name: "download",
-      label: "Download HA OS image",
-      description: `Downloads HA OS ${version} for ${board}.`,
+      label: isCached ? "Download HA OS image (cached)" : "Download HA OS image",
+      description: downloadDesc,
       link: { text: "View release", url: releaseUrl },
       status: "pending",
       progress: 0,
@@ -85,13 +91,13 @@ export const actions = {
   },
 
   /** Start the pipeline after backup is selected. */
-  startClone(systemInfo?: SystemInfoResponse | null) {
+  startClone(systemInfo?: SystemInfoResponse | null, imageCache?: ImageCacheStatus | null) {
     appStore.setState((s) => {
       const backup = s.selectedBackup ?? { type: "new" as const };
       return {
         ...s,
         screen: "progress" as const,
-        stages: buildStages(backup, systemInfo),
+        stages: buildStages(backup, systemInfo, imageCache),
       };
     });
   },

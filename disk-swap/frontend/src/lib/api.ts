@@ -1,4 +1,4 @@
-import type { BackupsResponse, DevicesResponse, Job, SystemInfoResponse } from "@/types";
+import type { BackupsResponse, DevicesResponse, ImageCacheStatus, Job, SystemInfoResponse } from "@/types";
 
 /** All paths are relative (no leading /) for HA ingress compatibility. */
 
@@ -32,6 +32,17 @@ export async function startClone(devicePath: string, backupSlug?: string): Promi
 export async function cancelClone(): Promise<void> {
   const res = await fetch("api/cancel-clone", { method: "POST" });
   if (!res.ok) throw new Error(`Failed to cancel clone: ${res.status}`);
+}
+
+export async function fetchImageCache(): Promise<ImageCacheStatus> {
+  const res = await fetch("api/image-cache");
+  if (!res.ok) throw new Error(`Failed to fetch image cache: ${res.status}`);
+  return res.json();
+}
+
+export async function discardImageCache(): Promise<void> {
+  const res = await fetch("api/image-cache", { method: "DELETE" });
+  if (!res.ok) throw new Error(`Failed to discard image cache: ${res.status}`);
 }
 
 export async function fetchCurrentJob(): Promise<Job | null> {

@@ -113,6 +113,15 @@ export interface SupervisorBackup {
   size: number; // MB float from Supervisor
 }
 
+/** Response shape for GET /api/image-cache */
+export interface ImageCacheStatus {
+  cached: boolean;
+  version: string;
+  board: string;
+  size_bytes: number;
+  size_human: string;
+}
+
 /** Supervisor backup creation response */
 export interface BackupJobResponse {
   job_id: string;

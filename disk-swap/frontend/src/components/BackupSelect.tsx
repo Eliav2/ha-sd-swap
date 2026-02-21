@@ -1,6 +1,11 @@
-import { Plus, ArrowLeft, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { formatDistanceToNow } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
+import { Plus, ArrowLeft, ExternalLink, HardDrive, Trash2 } from "lucide-react";
 import type { BackupSelection } from "@/types";
 import { useBackups } from "@/hooks/use-backups";
+import { useImageCache } from "@/hooks/use-image-cache";
+import { discardImageCache } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,13 +20,8 @@ interface BackupSelectProps {
 
 function formatDate(dateStr: string): string {
   try {
-    return new Date(dateStr).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const date = new Date(dateStr);
+    return formatDistanceToNow(date, { addSuffix: true });
   } catch {
     return dateStr;
   }
@@ -34,8 +34,23 @@ function formatSize(sizeMB: number): string {
 
 export function BackupSelect({ selectedBackup, onSelect, onNext, onBack }: BackupSelectProps) {
   const { data: backups, isLoading, error } = useBackups();
+  const { data: imageCache } = useImageCache();
+  const queryClient = useQueryClient();
+  const [discarding, setDiscarding] = useState(false);
 
   const isNewSelected = selectedBackup?.type === "new";
+
+  async function handleDiscard() {
+    setDiscarding(true);
+    try {
+      await discardImageCache();
+      queryClient.invalidateQueries({ queryKey: ["image-cache"] });
+    } catch {
+      // silently fail — next clone will just re-download
+    } finally {
+      setDiscarding(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -127,6 +142,43 @@ export function BackupSelect({ selectedBackup, onSelect, onNext, onBack }: Backu
         Manage backups in Settings
         <ExternalLink className="h-3 w-3" />
       </a>
+
+      {/* Cached OS Image */}
+      {imageCache?.cached && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-medium">Cached OS Image</h2>
+          <Card size="sm">
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <HardDrive className="text-muted-foreground h-4 w-4" />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        HA OS {imageCache.version}
+                      </span>
+                      <Badge variant="secondary">cached</Badge>
+                      <Badge variant="outline">{imageCache.size_human}</Badge>
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      Board: {imageCache.board} — download step will be skipped
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDiscard}
+                  disabled={discarding}
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" />
+                  {discarding ? "Discarding..." : "Discard"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="flex gap-2">
         <Button variant="outline" className="flex-1" onClick={onBack}>

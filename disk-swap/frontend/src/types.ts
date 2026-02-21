@@ -45,6 +45,15 @@ export type BackupSelection =
   | { type: "new" }
   | { type: "existing"; slug: string; name: string };
 
+/** Response shape for GET api/image-cache */
+export interface ImageCacheStatus {
+  cached: boolean;
+  version?: string;
+  board?: string;
+  size_bytes?: number;
+  size_human?: string;
+}
+
 /** Clone job stages */
 export type StageName = "backup" | "download" | "flash" | "inject";
 
