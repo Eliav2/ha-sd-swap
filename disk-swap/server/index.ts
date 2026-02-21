@@ -13,6 +13,17 @@ const { getSystemInfo } = isDev
 
 const app = new Hono();
 
+// HA ingress produces double-slash paths (ingress_entry: / appended to token/)
+// Normalize before routing so /api/devices matches //api/devices
+app.use("*", async (c, next) => {
+  const url = new URL(c.req.url);
+  if (url.pathname.includes("//")) {
+    url.pathname = url.pathname.replace(/\/\/+/g, "/");
+    return app.fetch(new Request(url, c.req.raw), c.env);
+  }
+  return next();
+});
+
 // --- API routes ---
 
 app.get("/api/health", (c) => {
