@@ -85,9 +85,9 @@ export function DeviceList({ selectedDevice, onSelect, onNext }: DeviceListProps
           <div className="space-y-2">
             {devices.map((device) => (
               <DeviceCard
-                key={device.serial}
+                key={device.path}
                 device={device}
-                selected={selectedDevice?.serial === device.serial}
+                selected={selectedDevice?.path === device.path}
                 onSelect={() => onSelect(device)}
               />
             ))}
