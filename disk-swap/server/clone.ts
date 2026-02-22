@@ -273,7 +273,7 @@ async function runFlashStage(devicePath: string): Promise<void> {
 
     await flash(localImagePath, devicePath, (percent, speed, eta) => {
       updateStage("flash", "in_progress", percent, speed, eta);
-    });
+    }, abortController?.signal);
 
     await runPartprobe(devicePath);
     updateStage("flash", "completed", 100);

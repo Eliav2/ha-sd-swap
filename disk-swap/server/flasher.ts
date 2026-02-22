@@ -18,14 +18,15 @@ export async function flash(
   imagePath: string,
   devicePath: string,
   progressCb: (percent: number, bytesPerSec: number, etaSec: number) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   const uncompressedSize = await getUncompressedSize(imagePath);
   console.log(`[flash] Image: ${imagePath}, Device: ${devicePath}, Uncompressed: ${uncompressedSize}`);
 
+  // Use setsid to create a new process group so we can kill the entire pipeline
   const proc = Bun.spawn(
     [
-      "sh",
-      "-c",
+      "setsid", "sh", "-c",
       `xz -dc "${imagePath}" | pv --numeric --size ${uncompressedSize} | dd of="${devicePath}" bs=4M oflag=direct status=none`,
     ],
     {
@@ -33,6 +34,15 @@ export async function flash(
       stderr: "pipe",
     },
   );
+
+  // Kill the entire process group on abort
+  const onAbort = () => {
+    try {
+      // Negative PID kills the entire process group
+      process.kill(-proc.pid, "SIGKILL");
+    } catch { /* already exited */ }
+  };
+  signal?.addEventListener("abort", onAbort, { once: true });
 
   const reader = proc.stderr.getReader();
   const decoder = new TextDecoder();
@@ -85,6 +95,10 @@ export async function flash(
       errorLines.push(buffer.trim());
     }
   }
+
+  signal?.removeEventListener("abort", onAbort);
+
+  if (signal?.aborted) return; // cancelled — don't check exit code
 
   const exitCode = await proc.exited;
   if (exitCode !== 0) {
