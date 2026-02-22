@@ -81,11 +81,51 @@ async function findBackupFile(slug: string): Promise<string> {
 }
 
 /**
+ * Set up .HA_RESTORE so HA Core auto-restores config + database on first boot.
+ * Must be called while hassos-data is still mounted at MOUNT_POINT.
+ */
+async function setupAutoRestore(backupSlug: string): Promise<void> {
+  const coreBackupDir = `${MOUNT_POINT}/homeassistant/backups`;
+  const supervisorTar = `${MOUNT_POINT}/supervisor/backup/${backupSlug}.tar`;
+  const coreTar = `${coreBackupDir}/${backupSlug}.tar`;
+  const restoreFile = `${MOUNT_POINT}/homeassistant/.HA_RESTORE`;
+
+  console.log("[inject] Setting up auto-restore for first boot...");
+
+  // Create HA Core backup directory
+  await $`mkdir -p ${coreBackupDir}`;
+
+  // Hard-link backup tar for HA Core access (same partition, no extra disk space)
+  try {
+    await $`ln ${supervisorTar} ${coreTar}`;
+    console.log("[inject] Hard-linked backup tar to homeassistant/backups/");
+  } catch {
+    // Fallback to copy if hard-link fails
+    console.log("[inject] Hard-link failed, copying backup tar...");
+    await $`cp ${supervisorTar} ${coreTar}`;
+  }
+
+  // Write .HA_RESTORE instruction file
+  // Path inside HA Core container: /config/backups/{slug}.tar
+  const restoreConfig = JSON.stringify({
+    path: `/config/backups/${backupSlug}.tar`,
+    password: null,
+    remove_after_restore: false,
+    restore_database: true,
+    restore_homeassistant: true,
+  }, null, 2);
+
+  await Bun.write(restoreFile, restoreConfig);
+  console.log("[inject] Wrote .HA_RESTORE file for auto-restore on first boot.");
+}
+
+/**
  * Inject a backup .tar into the freshly flashed device's data partition.
  * 1. Find hassos-data partition
  * 2. Mount at /mnt/newsd
  * 3. Copy backup .tar into supervisor/backup/
- * 4. sync + unmount (always, via finally)
+ * 4. Set up .HA_RESTORE for auto-restore on first boot
+ * 5. sync + unmount (always, via finally)
  */
 export async function injectBackup(
   devicePath: string,
@@ -128,6 +168,7 @@ export async function injectBackup(
 
     if (!signal?.aborted) {
       await writer.end();
+      await setupAutoRestore(backupSlug);
       await $`sync`;
     }
   } finally {

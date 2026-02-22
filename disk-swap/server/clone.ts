@@ -6,10 +6,12 @@ import {
   completeJob,
   failJob,
   clearJob,
+  setBackupName,
 } from "./jobs.ts";
 import {
   createFullBackup,
   pollJob,
+  listBackups,
   getOsInfo,
   getInfo,
   machineToBoardSlug,
@@ -112,9 +114,17 @@ export async function runClonePipeline(
         backupSlug = existingBackupSlug;
         console.log("[clone] Using existing backup:", backupSlug);
         updateStage("backup", "completed", 100);
+        // Look up backup name for frontend display
+        const backups = await listBackups();
+        const match = backups.find((b) => b.slug === backupSlug);
+        if (match) setBackupName(match.name);
       } else {
         console.log("[clone] Starting backup stage...");
         await runBackupStage();
+        // Look up backup name for frontend display
+        const backups = await listBackups();
+        const match = backups.find((b) => b.slug === backupSlug);
+        if (match) setBackupName(match.name);
       }
       checkCancelled();
 

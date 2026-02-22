@@ -29,6 +29,7 @@ export function createJob(device: Device): Job {
       inject: { name: "inject", status: "pending", progress: 0 },
     },
     error: null,
+    backupName: null,
     createdAt: Date.now(),
   };
 
@@ -48,11 +49,17 @@ export function updateStage(
   broadcast({ type: "stage_update", stage, status, progress, speed, eta });
 }
 
+/** Store the backup name on the current job (for frontend display). */
+export function setBackupName(name: string): void {
+  if (!currentJob) return;
+  currentJob.backupName = name;
+}
+
 /** Mark the entire job as completed. */
 export function completeJob(): void {
   if (!currentJob) return;
   currentJob.status = "completed";
-  broadcast({ type: "done" });
+  broadcast({ type: "done", backupName: currentJob.backupName });
 }
 
 /** Mark the job as failed with an error message scoped to a stage. */

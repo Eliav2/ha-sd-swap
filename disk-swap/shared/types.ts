@@ -91,6 +91,7 @@ export interface Job {
   device: Device;
   stages: Record<StageName, StageState>;
   error: string | null;
+  backupName: string | null;
   createdAt: number;
 }
 
@@ -98,7 +99,7 @@ export interface Job {
 export type WsMessage =
   | { type: "stage_update"; stage: StageName; status: StageStatus; progress: number; speed?: number; eta?: number }
   | { type: "error"; stage: StageName; message: string }
-  | { type: "done" }
+  | { type: "done"; backupName: string | null }
   | { type: "cancelled" };
 
 /** POST /api/start-clone request body */

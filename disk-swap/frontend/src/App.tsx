@@ -15,6 +15,7 @@ export default function App() {
   const screen = useStore(appStore, (s) => s.screen);
   const selectedDevice = useStore(appStore, (s) => s.selectedDevice);
   const selectedBackup = useStore(appStore, (s) => s.selectedBackup);
+  const backupName = useStore(appStore, (s) => s.backupName);
   const skipFlash = useStore(appStore, (s) => s.skipFlash);
   const stages = useStore(appStore, (s) => s.stages);
   const { data: systemInfo } = useSystemInfo();
@@ -78,6 +79,7 @@ export default function App() {
       {screen === "complete" && selectedDevice && (
         <SwapComplete
           device={selectedDevice}
+          backupName={backupName}
           onReset={actions.reset}
         />
       )}

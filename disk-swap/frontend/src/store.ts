@@ -5,6 +5,7 @@ export interface AppState {
   screen: Screen;
   selectedDevice: Device | null;
   selectedBackup: BackupSelection | null;
+  backupName: string | null;
   skipFlash: boolean;
   stages: StageState[];
 }
@@ -20,6 +21,7 @@ export const appStore = new Store<AppState>({
   screen: "device_select",
   selectedDevice: null,
   selectedBackup: null,
+  backupName: null,
   skipFlash: false,
   stages: defaultStages,
 });
@@ -129,6 +131,7 @@ export const actions = {
       screen: "device_select" as const,
       selectedDevice: null,
       selectedBackup: null,
+      backupName: null,
       skipFlash: false,
     }));
   },
@@ -152,8 +155,12 @@ export const actions = {
     }));
   },
 
-  complete() {
-    appStore.setState((s) => ({ ...s, screen: "complete" as const }));
+  complete(backupName?: string | null) {
+    appStore.setState((s) => ({
+      ...s,
+      screen: "complete" as const,
+      backupName: backupName ?? s.backupName,
+    }));
   },
 
   resumeJob(job: Job, systemInfo?: SystemInfoResponse | null, imageCache?: ImageCacheStatus | null) {
@@ -174,6 +181,7 @@ export const actions = {
       screen,
       selectedDevice: job.device,
       selectedBackup: null,
+      backupName: job.backupName,
       skipFlash: false,
       stages,
     }));
@@ -184,6 +192,7 @@ export const actions = {
       screen: "device_select" as const,
       selectedDevice: null,
       selectedBackup: null,
+      backupName: null,
       skipFlash: false,
       stages: defaultStages.map((st) => ({ ...st })),
     }));

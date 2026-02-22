@@ -77,7 +77,7 @@ export interface StageState {
 export type WsMessage =
   | { type: "stage_update"; stage: StageName; status: StageStatus; progress: number; speed?: number; eta?: number }
   | { type: "error"; stage: StageName; message: string }
-  | { type: "done" }
+  | { type: "done"; backupName: string | null }
   | { type: "cancelled" };
 
 /** Job status */
@@ -90,6 +90,7 @@ export interface Job {
   device: Device;
   stages: Record<StageName, { name: StageName; status: StageStatus; progress: number }>;
   error: string | null;
+  backupName: string | null;
   createdAt: number;
 }
 

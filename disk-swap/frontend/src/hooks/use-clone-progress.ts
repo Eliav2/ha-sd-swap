@@ -31,7 +31,7 @@ export function useCloneProgress(active: boolean) {
           actions.updateStage(msg.stage, "failed", 0);
           break;
         case "done":
-          actions.complete();
+          actions.complete(msg.backupName);
           break;
         case "cancelled":
           actions.reset();
