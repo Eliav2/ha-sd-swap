@@ -20,6 +20,7 @@ export async function findDataPartition(devicePath: string): Promise<string> {
 }
 
 async function mount(partitionPath: string): Promise<void> {
+  await $`mkdir -p ${MOUNT_POINT}`;
   await $`mount -t ext4 -o rw ${partitionPath} ${MOUNT_POINT}`;
 }
 
@@ -43,6 +44,7 @@ export async function injectBackup(
   devicePath: string,
   backupSlug: string,
   progressCb: (percent: number) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   const sourcePath = `/backup/${backupSlug}.tar`;
   const destDir = `${MOUNT_POINT}/supervisor/backup`;
@@ -65,15 +67,21 @@ export async function injectBackup(
     let copied = 0;
 
     while (true) {
+      if (signal?.aborted) {
+        await writer.end();
+        break;
+      }
       const { done, value } = await reader.read();
       if (done) break;
       writer.write(value);
       copied += value.byteLength;
       progressCb(Math.round((copied / totalBytes) * 100));
     }
-    await writer.end();
 
-    await $`sync`;
+    if (!signal?.aborted) {
+      await writer.end();
+      await $`sync`;
+    }
   } finally {
     await unmount();
   }
