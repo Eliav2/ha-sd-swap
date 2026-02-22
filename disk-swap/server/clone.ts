@@ -243,8 +243,8 @@ async function runDownloadStage(): Promise<void> {
 
     checkCancelled();
     const signal = abortController?.signal;
-    await downloadImage(imageUrl, localImagePath, (percent, speed) => {
-      updateStage("download", "in_progress", percent, speed);
+    await downloadImage(imageUrl, localImagePath, (percent, speed, eta) => {
+      updateStage("download", "in_progress", percent, speed, eta);
     }, signal);
 
     await verifyChecksum(localImagePath, checksumUrl);
@@ -271,8 +271,8 @@ async function runFlashStage(devicePath: string): Promise<void> {
       return;
     }
 
-    await flash(localImagePath, devicePath, (percent, speed) => {
-      updateStage("flash", "in_progress", percent, speed);
+    await flash(localImagePath, devicePath, (percent, speed, eta) => {
+      updateStage("flash", "in_progress", percent, speed, eta);
     });
 
     await runPartprobe(devicePath);

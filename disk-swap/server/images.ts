@@ -21,7 +21,7 @@ export function imagePath(boardSlug: string, version: string): string {
 export async function downloadImage(
   url: string,
   destPath: string,
-  progressCb: (percent: number, bytesPerSec: number) => void,
+  progressCb: (percent: number, bytesPerSec: number, etaSec: number) => void,
   signal?: AbortSignal,
 ): Promise<void> {
   const res = await fetch(url, { redirect: "follow", signal });
@@ -37,6 +37,7 @@ export async function downloadImage(
   let prevReceived = 0;
   let prevTime = Date.now();
   let speed = 0;
+  let eta = 0;
 
   for await (const chunk of res.body) {
     writer.write(chunk);
@@ -48,10 +49,13 @@ export async function downloadImage(
       speed = (received - prevReceived) / elapsed;
       prevReceived = received;
       prevTime = now;
+      if (speed > 0 && contentLength > 0) {
+        eta = (contentLength - received) / speed;
+      }
     }
 
     if (contentLength > 0) {
-      progressCb(Math.round((received / contentLength) * 100), speed);
+      progressCb(Math.round((received / contentLength) * 100), speed, eta);
     }
   }
   await writer.end();

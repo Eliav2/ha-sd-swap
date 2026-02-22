@@ -17,7 +17,7 @@ export async function getUncompressedSize(imagePath: string): Promise<number> {
 export async function flash(
   imagePath: string,
   devicePath: string,
-  progressCb: (percent: number, bytesPerSec: number) => void,
+  progressCb: (percent: number, bytesPerSec: number, etaSec: number) => void,
 ): Promise<void> {
   const uncompressedSize = await getUncompressedSize(imagePath);
   console.log(`[flash] Image: ${imagePath}, Device: ${devicePath}, Uncompressed: ${uncompressedSize}`);
@@ -41,6 +41,7 @@ export async function flash(
   let prevPercent = 0;
   let prevTime = Date.now();
   let speed = 0;
+  let eta = 0;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -62,8 +63,12 @@ export async function flash(
           speed = bytesWritten / elapsed;
           prevPercent = num;
           prevTime = now;
+          if (speed > 0) {
+            const remainingBytes = ((100 - num) / 100) * uncompressedSize;
+            eta = remainingBytes / speed;
+          }
         }
-        progressCb(Math.min(Math.round(num), 100), speed);
+        progressCb(Math.min(Math.round(num), 100), speed, eta);
       } else {
         // Non-numeric line = error output from xz/pv/dd
         console.error(`[flash] stderr: ${trimmed}`);
