@@ -26,7 +26,7 @@ export async function flash(
     [
       "sh",
       "-c",
-      `xz -dc "${imagePath}" | pv --numeric --size ${uncompressedSize} | dd of="${devicePath}" bs=4M conv=fdatasync,sync status=none`,
+      `xz -dc "${imagePath}" | pv --numeric --size ${uncompressedSize} | dd of="${devicePath}" bs=4M oflag=direct status=none`,
     ],
     {
       stdout: "ignore",
