@@ -95,7 +95,7 @@ export interface Job {
 
 /** WebSocket messages (server → client) */
 export type WsMessage =
-  | { type: "stage_update"; stage: StageName; status: StageStatus; progress: number }
+  | { type: "stage_update"; stage: StageName; status: StageStatus; progress: number; speed?: number }
   | { type: "error"; stage: StageName; message: string }
   | { type: "done" }
   | { type: "cancelled" };

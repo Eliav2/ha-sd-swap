@@ -17,23 +17,8 @@ export async function getUncompressedSize(imagePath: string): Promise<number> {
 export async function flash(
   imagePath: string,
   devicePath: string,
-  progressCb: (percent: number) => void,
+  progressCb: (percent: number, bytesPerSec: number) => void,
 ): Promise<void> {
-  // Diagnostics — what does the container see?
-  try {
-    const lsDev = await $`ls -la ${devicePath}`.text();
-    console.log(`[flash] ls -la ${devicePath}: ${lsDev.trim()}`);
-    const whoami = await $`whoami`.text();
-    console.log(`[flash] whoami: ${whoami.trim()}`);
-    const id = await $`id`.text();
-    console.log(`[flash] id: ${id.trim()}`);
-    // Check if we can read/write
-    const testWrite = await $`dd if=/dev/zero of=${devicePath} bs=512 count=1 2>&1`.text();
-    console.log(`[flash] test dd write: ${testWrite.trim()}`);
-  } catch (err) {
-    console.error(`[flash] diagnostics failed:`, err);
-  }
-
   const uncompressedSize = await getUncompressedSize(imagePath);
   console.log(`[flash] Image: ${imagePath}, Device: ${devicePath}, Uncompressed: ${uncompressedSize}`);
 
@@ -53,6 +38,9 @@ export async function flash(
   const decoder = new TextDecoder();
   let buffer = "";
   const errorLines: string[] = [];
+  let prevPercent = 0;
+  let prevTime = Date.now();
+  let speed = 0;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -67,7 +55,15 @@ export async function flash(
       if (!trimmed) continue;
       const num = parseFloat(trimmed);
       if (!isNaN(num) && num >= 0 && num <= 100) {
-        progressCb(Math.min(Math.round(num), 100));
+        const now = Date.now();
+        const elapsed = (now - prevTime) / 1000;
+        if (elapsed >= 1 && num > prevPercent) {
+          const bytesWritten = ((num - prevPercent) / 100) * uncompressedSize;
+          speed = bytesWritten / elapsed;
+          prevPercent = num;
+          prevTime = now;
+        }
+        progressCb(Math.min(Math.round(num), 100), speed);
       } else {
         // Non-numeric line = error output from xz/pv/dd
         console.error(`[flash] stderr: ${trimmed}`);

@@ -120,11 +120,11 @@ export const actions = {
     }));
   },
 
-  updateStage(stageName: string, status: StageState["status"], progress: number) {
+  updateStage(stageName: string, status: StageState["status"], progress: number, speed?: number) {
     appStore.setState((s) => ({
       ...s,
       stages: s.stages.map((st) =>
-        st.name === stageName ? { ...st, status, progress } : st
+        st.name === stageName ? { ...st, status, progress, speed } : st
       ),
     }));
   },

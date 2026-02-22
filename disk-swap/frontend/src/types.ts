@@ -67,12 +67,13 @@ export interface StageState {
   description: string;
   status: StageStatus;
   progress: number; // 0–100
+  speed?: number; // bytes/sec
   link?: { text: string; url: string };
 }
 
 /** WebSocket messages (server → client) */
 export type WsMessage =
-  | { type: "stage_update"; stage: StageName; status: StageStatus; progress: number }
+  | { type: "stage_update"; stage: StageName; status: StageStatus; progress: number; speed?: number }
   | { type: "error"; stage: StageName; message: string }
   | { type: "done" }
   | { type: "cancelled" };

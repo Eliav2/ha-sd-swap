@@ -14,9 +14,8 @@ interface CloneProgressProps {
 export function CloneProgress({ device, stages }: CloneProgressProps) {
   const [cancelling, setCancelling] = useState(false);
 
-  // Disable cancel during flash/inject — dangerous to interrupt mid-write
   const activeStage = stages.find((s) => s.status === "in_progress");
-  const isDangerous = activeStage?.name === "flash" || activeStage?.name === "inject";
+  const isWriting = activeStage?.name === "flash" || activeStage?.name === "inject";
   const isFinished = stages.every(
     (s) => s.status === "completed" || s.status === "failed",
   );
@@ -57,13 +56,13 @@ export function CloneProgress({ device, stages }: CloneProgressProps) {
         <Button
           variant="outline"
           className="w-full"
-          disabled={isDangerous || cancelling}
+          disabled={cancelling}
           onClick={handleCancel}
         >
           {cancelling
             ? "Cancelling..."
-            : isDangerous
-              ? "Cannot cancel during write"
+            : isWriting
+              ? "Cancel (will interrupt write)"
               : "Cancel"}
         </Button>
       )}

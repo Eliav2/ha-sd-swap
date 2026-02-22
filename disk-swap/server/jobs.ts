@@ -40,10 +40,11 @@ export function updateStage(
   stage: StageName,
   status: StageStatus,
   progress: number,
+  speed?: number,
 ): void {
   if (!currentJob) return;
   currentJob.stages[stage] = { name: stage, status, progress };
-  broadcast({ type: "stage_update", stage, status, progress });
+  broadcast({ type: "stage_update", stage, status, progress, speed });
 }
 
 /** Mark the entire job as completed. */

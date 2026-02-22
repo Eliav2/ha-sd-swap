@@ -4,6 +4,13 @@ import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+function formatSpeed(bytesPerSec: number): string {
+  if (bytesPerSec <= 0) return "";
+  const MB = 1024 * 1024;
+  if (bytesPerSec >= MB) return `${(bytesPerSec / MB).toFixed(1)} MB/s`;
+  return `${Math.round(bytesPerSec / 1024)} KB/s`;
+}
+
 interface StageRowProps {
   stage: StageState;
 }
@@ -41,10 +48,17 @@ export function StageRow({ stage }: StageRowProps) {
           )}
         </p>
       )}
-      <Progress value={stage.progress}>
-        <ProgressLabel className="sr-only">{stage.label}</ProgressLabel>
-        <ProgressValue />
-      </Progress>
+      <div className="flex items-center gap-2">
+        <Progress value={stage.progress} className="flex-1">
+          <ProgressLabel className="sr-only">{stage.label}</ProgressLabel>
+          <ProgressValue />
+        </Progress>
+        {stage.status === "in_progress" && stage.speed != null && stage.speed > 0 && (
+          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+            {formatSpeed(stage.speed)}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

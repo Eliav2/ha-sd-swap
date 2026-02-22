@@ -21,7 +21,7 @@ export function imagePath(boardSlug: string, version: string): string {
 export async function downloadImage(
   url: string,
   destPath: string,
-  progressCb: (percent: number) => void,
+  progressCb: (percent: number, bytesPerSec: number) => void,
   signal?: AbortSignal,
 ): Promise<void> {
   const res = await fetch(url, { redirect: "follow", signal });
@@ -34,12 +34,24 @@ export async function downloadImage(
 
   const writer = Bun.file(destPath).writer();
   let received = 0;
+  let prevReceived = 0;
+  let prevTime = Date.now();
+  let speed = 0;
 
   for await (const chunk of res.body) {
     writer.write(chunk);
     received += chunk.byteLength;
+
+    const now = Date.now();
+    const elapsed = (now - prevTime) / 1000;
+    if (elapsed >= 1) {
+      speed = (received - prevReceived) / elapsed;
+      prevReceived = received;
+      prevTime = now;
+    }
+
     if (contentLength > 0) {
-      progressCb(Math.round((received / contentLength) * 100));
+      progressCb(Math.round((received / contentLength) * 100), speed);
     }
   }
   await writer.end();
