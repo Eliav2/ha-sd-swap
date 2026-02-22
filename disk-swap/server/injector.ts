@@ -28,7 +28,12 @@ async function ensureExt4(partitionPath: string): Promise<void> {
   ).trim();
   if (fstype === "ext4") return;
   console.log(`[inject] No ext4 on ${partitionPath} (got "${fstype}"), creating filesystem...`);
-  await $`mkfs.ext4 -L hassos-data ${partitionPath}`;
+  // Clear stale filesystem signatures that can corrupt the new ext4
+  await $`wipefs -a ${partitionPath}`.nothrow().quiet();
+  await $`mkfs.ext4 -F -L hassos-data ${partitionPath}`;
+  // Flush block device cache so the kernel sees the fresh filesystem
+  await $`sync`;
+  await $`blockdev --flushbufs ${partitionPath}`.nothrow().quiet();
 }
 
 async function mount(partitionPath: string): Promise<void> {
@@ -94,6 +99,10 @@ export async function injectBackup(
 
   const sourceFile = Bun.file(sourcePath);
   const totalBytes = sourceFile.size;
+
+  // Refresh kernel's partition table view (important when flash was skipped)
+  await $`partprobe ${devicePath}`.nothrow().quiet();
+  await $`udevadm settle --timeout=5`.nothrow().quiet();
 
   const partitionPath = await findDataPartition(devicePath);
 
