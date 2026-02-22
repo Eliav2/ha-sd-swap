@@ -1,0 +1,56 @@
+name: Disk Swap
+version: "1.0.0"
+slug: disk-swap
+description: "Flash HA OS to any USB device — directly from Home Assistant, no PC required."
+url: "https://github.com/Eliav2/ha-disk-swap"
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: manual
+stage: stable
+timeout: 300
+
+# Hardware access — full_access is required because USB devices
+# appear as dynamic /dev/sdX block devices and HA's devices: key only
+# supports static paths (no wildcards).
+full_access: true
+udev: true
+
+# Linux capabilities needed for block device I/O (dd write)
+# and mount operations (inject stage).
+privileged:
+  - SYS_RAWIO
+  - SYS_ADMIN
+
+# Ingress web UI
+ingress: true
+ingress_port: 8099
+ingress_entry: /
+panel_icon: "mdi:micro-sd"
+panel_title: "Disk Swap"
+
+# Supervisor API access
+# manager role: access to /backups/*, /jobs/* (for polling backup progress),
+# /host/*, /os/*, and all read endpoints.
+hassio_api: true
+hassio_role: manager
+homeassistant_api: false
+auth_api: false
+
+# Storage
+map:
+  - type: data
+    read_only: false
+  - type: backup
+    read_only: false
+tmpfs: true
+
+# Backup — must be "hot" so the Supervisor doesn't stop us
+# during the full backup our own clone pipeline triggers
+backup: hot
+
+# No user-configurable options yet
+options: {}
+schema: {}

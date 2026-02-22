@@ -1,22 +1,62 @@
-# ha-sd-swap
+# Disk Swap for Home Assistant
 
-A Home Assistant App(add-on) for end-to-end SD card migration — directly on the Raspberry Pi, no PC required.
+Migrate your Home Assistant to a new storage device — directly from the HA UI, no PC required.
 
-## The Problem
+![Disk Swap UI](https://github.com/user-attachments/assets/5261b597-92a8-41af-9c5f-f0e5b55c797c)
 
-Migrating to a new SD card normally means taking your Pi offline, finding a computer, and using tools like Raspberry Pi Imager or Balena Etcher. There's no way to do it from within Home Assistant itself.
+[![Add Repository](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FEliav2%2Fha-disk-swap)
 
-## The Solution
+## Features
 
-`ha-sd-swap` lets you plug a new SD card into your Pi via a USB adapter and flash it with a fresh HA OS image — all from the HA UI. Once done, simply swap the cards and boot.
+- **One-click migration** — backup, flash, and restore in a single pipeline
+- **Auto-restore on first boot** — configuration, automations, accounts, and database are restored automatically
+- **Real-time progress** — live speed (MB/s) and ETA for every stage
+- **Image caching** — skip re-download on repeat clones
+- **Safe device filtering** — only shows USB devices, never your boot disk
+- **Cancellation** — abort at any stage
+- **Backup selection** — create a new backup or use an existing one
+
+## Installation
+
+1. Click the **Add Repository** button above (or manually add `https://github.com/Eliav2/ha-disk-swap` in **Settings > Add-ons > Add-on Store > Repositories**)
+2. Install **Disk Swap** from the store
+3. **Disable protection mode** on the app's Info tab (required for USB device access)
+4. Start the app and open the **Web UI**
 
 ## How It Works
 
-1. Plug your new SD card in via USB adapter
-2. Open the add-on UI — it detects the new card automatically
-3. Choose your image (latest HA OS or custom)
-4. Flash, verify, swap, done
+1. **Plug in** a USB storage device (USB stick, SSD, SD card via adapter)
+2. **Select** the target device in the UI
+3. **Clone** — the app creates a backup, downloads the HA OS image, flashes it to the USB device, and injects your backup
+4. **Swap** — shut down, remove the old boot media, insert the cloned device
+5. **Boot** — power on and log in with your existing credentials
 
-## Status
+## What Gets Restored
 
-🚧 Early experiment / work in progress
+**Automatically on first boot:**
+- User accounts and login credentials
+- Integrations and devices
+- Automations, scripts, and scenes
+- Entity history and database
+- All Home Assistant configuration
+
+**One extra step (Settings > System > Backups):**
+- Add-on apps — select the backup and restore the apps you need
+
+## Requirements
+
+- **Home Assistant OS** (not Container or Core)
+- USB storage device, **8 GB or larger**
+- Protection mode must be **disabled** (the app needs raw block device access)
+
+## Supported Hardware
+
+Works on all [Home Assistant OS supported boards](https://www.home-assistant.io/installation/) including Raspberry Pi 3/4/5, ODROID, Tinker Board, Intel NUC, and generic x86-64.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture overview, and build instructions.
+
+## License
+
+[MIT](LICENSE)

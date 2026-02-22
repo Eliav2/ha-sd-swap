@@ -1,8 +1,0 @@
-build_from:
-  aarch64: "ghcr.io/home-assistant/aarch64-base:3.21"
-  amd64: "ghcr.io/home-assistant/amd64-base:3.21"
-labels:
-  org.opencontainers.image.title: "Home Assistant Add-on: SD Card Swap"
-  org.opencontainers.image.description: "Flash a new SD card with HA OS directly from Home Assistant."
-  org.opencontainers.image.source: "https://github.com/eliav2/ha-sd-swap"
-  org.opencontainers.image.licenses: "MIT"

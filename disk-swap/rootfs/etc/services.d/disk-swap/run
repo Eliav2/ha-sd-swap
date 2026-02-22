@@ -1,0 +1,12 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Disk Swap — main service entry point
+# Starts the Bun/Hono server that serves both API and static web UI
+# ==============================================================================
+
+bashio::log.info "Starting Disk Swap app..."
+
+export INGRESS_PORT="8099"
+
+bashio::log.info "Listening on port ${INGRESS_PORT}..."
+exec bun run /usr/src/server/index.ts

@@ -1,0 +1,16 @@
+{
+  "name": "disk-swap-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run server/index.ts",
+    "dev": "DEV=1 bun --watch run server/index.ts"
+  },
+  "dependencies": {
+    "hono": "^4.7.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0"
+  }
+}
