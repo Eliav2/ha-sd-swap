@@ -16,6 +16,7 @@ export function CloneProgress({ device, stages }: CloneProgressProps) {
 
   const activeStage = stages.find((s) => s.status === "in_progress");
   const isWriting = activeStage?.name === "flash" || activeStage?.name === "inject";
+  const hasFailed = stages.some((s) => s.status === "failed");
   const isFinished = stages.every(
     (s) => s.status === "completed" || s.status === "failed",
   );
@@ -70,6 +71,16 @@ export function CloneProgress({ device, stages }: CloneProgressProps) {
             You can safely navigate away — cloning continues in the background.
           </p>
         </>
+      )}
+
+      {hasFailed && (
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={actions.reset}
+        >
+          Start Over
+        </Button>
       )}
     </div>
   );

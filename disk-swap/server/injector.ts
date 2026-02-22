@@ -1,6 +1,8 @@
 import { $ } from "bun";
+import { readdir } from "node:fs/promises";
 
 const MOUNT_POINT = "/mnt/newsd";
+const BACKUP_DIR = "/backup";
 
 /** Find the hassos-data partition on the target device. */
 export async function findDataPartition(devicePath: string): Promise<string> {
@@ -45,10 +47,39 @@ async function unmount(): Promise<void> {
 }
 
 /**
+ * Find the backup .tar file for a given slug.
+ * HA stores backups as {slug}.tar, but automatic backups may use name-based filenames.
+ * Falls back to searching all tars in /backup/ by reading their backup.json.
+ */
+async function findBackupFile(slug: string): Promise<string> {
+  // Fast path: check {slug}.tar directly
+  const directPath = `${BACKUP_DIR}/${slug}.tar`;
+  if (await Bun.file(directPath).exists()) return directPath;
+
+  // Slow path: search all tars for matching slug in backup.json
+  console.log(`[inject] ${slug}.tar not found, searching backup files...`);
+  const files = await readdir(BACKUP_DIR);
+  for (const file of files) {
+    if (!file.endsWith(".tar")) continue;
+    const filePath = `${BACKUP_DIR}/${file}`;
+    try {
+      const json = await $`tar -xf ${filePath} backup.json -O`.text();
+      const meta = JSON.parse(json);
+      if (meta.slug === slug) {
+        console.log(`[inject] Found backup ${slug} in ${file}`);
+        return filePath;
+      }
+    } catch { /* not a valid backup tar */ }
+  }
+
+  throw new Error(`Backup file not found for slug: ${slug}`);
+}
+
+/**
  * Inject a backup .tar into the freshly flashed device's data partition.
  * 1. Find hassos-data partition
  * 2. Mount at /mnt/newsd
- * 3. Copy /backup/{slug}.tar into supervisor/backup/
+ * 3. Copy backup .tar into supervisor/backup/
  * 4. sync + unmount (always, via finally)
  */
 export async function injectBackup(
@@ -57,14 +88,11 @@ export async function injectBackup(
   progressCb: (percent: number) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const sourcePath = `/backup/${backupSlug}.tar`;
+  const sourcePath = await findBackupFile(backupSlug);
   const destDir = `${MOUNT_POINT}/supervisor/backup`;
   const destPath = `${destDir}/${backupSlug}.tar`;
 
   const sourceFile = Bun.file(sourcePath);
-  if (!(await sourceFile.exists())) {
-    throw new Error(`Backup file not found: ${sourcePath}`);
-  }
   const totalBytes = sourceFile.size;
 
   const partitionPath = await findDataPartition(devicePath);
