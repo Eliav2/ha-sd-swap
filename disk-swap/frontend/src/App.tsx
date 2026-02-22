@@ -22,9 +22,9 @@ export default function App() {
   // On mount, check for an active/completed/failed job and resume if found
   useEffect(() => {
     fetchCurrentJob().then((job) => {
-      if (job) actions.resumeJob(job);
+      if (job) actions.resumeJob(job, systemInfo, imageCache);
     }).catch(() => {});
-  }, []);
+  }, [systemInfo, imageCache]);
 
   useCloneProgress(screen === "progress");
 

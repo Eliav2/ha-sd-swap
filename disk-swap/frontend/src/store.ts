@@ -133,11 +133,12 @@ export const actions = {
     appStore.setState((s) => ({ ...s, screen: "complete" as const }));
   },
 
-  resumeJob(job: Job) {
+  resumeJob(job: Job, systemInfo?: SystemInfoResponse | null, imageCache?: ImageCacheStatus | null) {
     const screen: Screen =
       job.status === "completed" ? "complete" : "progress";
 
-    const stages: StageState[] = defaultStages.map((init) => {
+    const base = buildStages({ type: "new" }, systemInfo, imageCache);
+    const stages: StageState[] = base.map((init) => {
       const jobStage = job.stages[init.name];
       return {
         ...init,
