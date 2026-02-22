@@ -17,7 +17,7 @@ export function DeviceCard({ device, selected, onSelect }: DeviceCardProps) {
         "cursor-pointer transition-colors",
         selected
           ? "ring-primary ring-2"
-          : "hover:bg-muted/50"
+          : "ring-transparent hover:bg-muted/50"
       )}
       onClick={onSelect}
     >
