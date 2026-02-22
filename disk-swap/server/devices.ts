@@ -46,6 +46,16 @@ export function isSafeTarget(
   return true;
 }
 
+/** Check if a device has HA OS by looking for hassos-boot GPT partition label. */
+async function hasHaOs(devicePath: string): Promise<boolean> {
+  try {
+    const output = await $`lsblk -nro PARTLABEL ${devicePath}`.nothrow().quiet().text();
+    return output.includes("hassos-boot");
+  } catch {
+    return false;
+  }
+}
+
 function formatSize(bytes: number): string {
   const GB = 1024 ** 3;
   const TB = 1024 ** 4;
@@ -70,20 +80,26 @@ export async function listUsbDevices(): Promise<Device[]> {
   const lsblkOutput = result.json();
   const rawDevices: RawBlockDevice[] = lsblkOutput.blockdevices ?? [];
 
-  return rawDevices
-    .filter((dev) => dev.type === "disk" && isSafeTarget(dev, bootDisk))
-    .map((dev) => {
+  const safe = rawDevices.filter(
+    (dev) => dev.type === "disk" && isSafeTarget(dev, bootDisk),
+  );
+
+  return Promise.all(
+    safe.map(async (dev) => {
       const size =
         typeof dev.size === "string" ? parseInt(dev.size, 10) : dev.size;
+      const path = `/dev/${dev.name}`;
       return {
         name: dev.name,
-        path: `/dev/${dev.name}`,
+        path,
         size,
         size_human: formatSize(size),
         vendor: (dev.vendor ?? "").trim(),
         model: (dev.model ?? "").trim(),
         tran: dev.tran ?? "unknown",
         serial: (dev.serial ?? "").trim(),
+        has_ha_os: await hasHaOs(path),
       };
-    });
+    }),
+  );
 }

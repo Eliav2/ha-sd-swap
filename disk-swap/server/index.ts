@@ -121,12 +121,12 @@ app.delete("/api/image-cache", async (c) => {
 
 app.post("/api/start-clone", async (c) => {
   try {
-    const body = await c.req.json<{ device: string; backup_slug?: string }>();
+    const body = await c.req.json<{ device: string; backup_slug?: string; skip_flash?: boolean }>();
     if (!body.device) {
       return c.json({ error: "Missing 'device' field" }, 400);
     }
 
-    const job = await runClonePipeline(body.device, body.backup_slug);
+    const job = await runClonePipeline(body.device, body.backup_slug, body.skip_flash);
     return c.json({ job_id: job.id });
   } catch (err) {
     console.error("Start clone failed:", err);

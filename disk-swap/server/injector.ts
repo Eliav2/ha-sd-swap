@@ -4,7 +4,7 @@ const MOUNT_POINT = "/mnt/newsd";
 
 /** Find the hassos-data partition on the target device. */
 export async function findDataPartition(devicePath: string): Promise<string> {
-  const output = await $`lsblk -nro NAME,LABEL ${devicePath}`.text();
+  const output = await $`lsblk -nro NAME,PARTLABEL ${devicePath}`.text();
 
   for (const line of output.trim().split("\n")) {
     const parts = line.trim().split(/\s+/);

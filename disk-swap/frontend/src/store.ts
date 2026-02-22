@@ -5,6 +5,7 @@ export interface AppState {
   screen: Screen;
   selectedDevice: Device | null;
   selectedBackup: BackupSelection | null;
+  skipFlash: boolean;
   stages: StageState[];
 }
 
@@ -19,6 +20,7 @@ export const appStore = new Store<AppState>({
   screen: "device_select",
   selectedDevice: null,
   selectedBackup: null,
+  skipFlash: false,
   stages: defaultStages,
 });
 
@@ -27,15 +29,24 @@ function buildStages(
   backup: BackupSelection,
   systemInfo?: SystemInfoResponse | null,
   imageCache?: ImageCacheStatus | null,
+  skipFlash?: boolean,
 ): StageState[] {
   const version = systemInfo?.os_version ?? "latest";
   const board = systemInfo?.board_slug ?? "your device";
   const releaseUrl = `https://github.com/home-assistant/operating-system/releases/tag/${version}`;
   const isCached = imageCache?.cached === true;
 
-  const downloadDesc = isCached
-    ? `Using cached HA OS ${version} image for ${board}.`
-    : `Downloads HA OS ${version} for ${board}.`;
+  const downloadDesc = skipFlash
+    ? "Skipped — device already has HA OS."
+    : isCached
+      ? `Using cached HA OS ${version} image for ${board}.`
+      : `Downloads HA OS ${version} for ${board}.`;
+
+  const downloadLabel = skipFlash
+    ? "Download HA OS image (skipped)"
+    : isCached
+      ? "Download HA OS image (cached)"
+      : "Download HA OS image";
 
   return [
     {
@@ -49,16 +60,18 @@ function buildStages(
     },
     {
       name: "download",
-      label: isCached ? "Download HA OS image (cached)" : "Download HA OS image",
+      label: downloadLabel,
       description: downloadDesc,
-      link: { text: "View release", url: releaseUrl },
+      link: skipFlash ? undefined : { text: "View release", url: releaseUrl },
       status: "pending",
       progress: 0,
     },
     {
       name: "flash",
-      label: "Flash to device",
-      description: "Writes the OS image to the target USB device.",
+      label: skipFlash ? "Flash to device (skipped)" : "Flash to device",
+      description: skipFlash
+        ? "Skipped — device already has HA OS."
+        : "Writes the OS image to the target USB device.",
       status: "pending",
       progress: 0,
     },
@@ -83,11 +96,19 @@ export const actions = {
 
   /** After the erase warning, go to backup selection. */
   confirmErase() {
-    appStore.setState((s) => ({ ...s, screen: "backup_select" as const }));
+    appStore.setState((s) => ({
+      ...s,
+      screen: "backup_select" as const,
+      skipFlash: s.selectedDevice?.has_ha_os ?? false,
+    }));
   },
 
   selectBackup(backup: BackupSelection) {
     appStore.setState((s) => ({ ...s, selectedBackup: backup }));
+  },
+
+  setSkipFlash(skip: boolean) {
+    appStore.setState((s) => ({ ...s, skipFlash: skip }));
   },
 
   /** Start the pipeline after backup is selected. */
@@ -97,7 +118,7 @@ export const actions = {
       return {
         ...s,
         screen: "progress" as const,
-        stages: buildStages(backup, systemInfo, imageCache),
+        stages: buildStages(backup, systemInfo, imageCache, s.skipFlash),
       };
     });
   },
@@ -108,6 +129,7 @@ export const actions = {
       screen: "device_select" as const,
       selectedDevice: null,
       selectedBackup: null,
+      skipFlash: false,
     }));
   },
 
@@ -117,6 +139,7 @@ export const actions = {
       ...s,
       screen: "device_select" as const,
       selectedBackup: null,
+      skipFlash: false,
     }));
   },
 
@@ -151,6 +174,7 @@ export const actions = {
       screen,
       selectedDevice: job.device,
       selectedBackup: null,
+      skipFlash: false,
       stages,
     }));
   },
@@ -160,6 +184,7 @@ export const actions = {
       screen: "device_select" as const,
       selectedDevice: null,
       selectedBackup: null,
+      skipFlash: false,
       stages: defaultStages.map((st) => ({ ...st })),
     }));
   },

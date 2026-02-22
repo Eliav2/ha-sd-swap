@@ -8,6 +8,7 @@ export interface Device {
   model: string;
   tran: string;
   serial: string;
+  has_ha_os: boolean;
 }
 
 /** Response shape for GET api/devices */

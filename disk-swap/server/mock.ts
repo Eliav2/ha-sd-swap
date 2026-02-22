@@ -12,6 +12,7 @@ export async function listUsbDevices(): Promise<Device[]> {
       model: "Ultra Fit",
       tran: "usb",
       serial: "FAKE001",
+      has_ha_os: true,
     },
     {
       name: "sdb",
@@ -22,6 +23,7 @@ export async function listUsbDevices(): Promise<Device[]> {
       model: "EVO Select",
       tran: "usb",
       serial: "FAKE002",
+      has_ha_os: false,
     },
   ];
 }

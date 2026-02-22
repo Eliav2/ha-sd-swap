@@ -15,6 +15,7 @@ export default function App() {
   const screen = useStore(appStore, (s) => s.screen);
   const selectedDevice = useStore(appStore, (s) => s.selectedDevice);
   const selectedBackup = useStore(appStore, (s) => s.selectedBackup);
+  const skipFlash = useStore(appStore, (s) => s.skipFlash);
   const stages = useStore(appStore, (s) => s.stages);
   const { data: systemInfo } = useSystemInfo();
   const { data: imageCache } = useImageCache();
@@ -34,7 +35,7 @@ export default function App() {
     const backupSlug =
       selectedBackup?.type === "existing" ? selectedBackup.slug : undefined;
     try {
-      await startClone(selectedDevice.path, backupSlug);
+      await startClone(selectedDevice.path, backupSlug, skipFlash);
     } catch {
       // WebSocket will report actual stage errors
     }
@@ -58,10 +59,13 @@ export default function App() {
         />
       )}
 
-      {screen === "backup_select" && (
+      {screen === "backup_select" && selectedDevice && (
         <BackupSelect
+          device={selectedDevice}
           selectedBackup={selectedBackup}
+          skipFlash={skipFlash}
           onSelect={actions.selectBackup}
+          onSetSkipFlash={actions.setSkipFlash}
           onNext={handleStart}
           onBack={actions.backToDeviceSelect}
         />

@@ -19,6 +19,7 @@ export interface Device {
   model: string;
   tran: string;
   serial: string;
+  has_ha_os: boolean;
 }
 
 /** Response shape for GET /api/devices */
@@ -104,6 +105,7 @@ export type WsMessage =
 export interface StartCloneRequest {
   device: string;
   backup_slug?: string;
+  skip_flash?: boolean;
 }
 
 /** Supervisor backup entry from GET /backups */

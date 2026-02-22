@@ -97,6 +97,7 @@ async function preflight(devicePath: string): Promise<Device> {
 export async function runClonePipeline(
   devicePath: string,
   existingBackupSlug?: string,
+  skipFlash?: boolean,
 ): Promise<Job> {
   const device = await preflight(devicePath);
   const job = createJob(device);
@@ -116,11 +117,19 @@ export async function runClonePipeline(
         await runBackupStage();
       }
       checkCancelled();
-      console.log("[clone] Starting download stage...");
-      await runDownloadStage();
-      checkCancelled();
-      console.log("[clone] Starting flash stage...");
-      await runFlashStage(devicePath);
+
+      if (skipFlash) {
+        // Device already has HA OS — skip download and flash
+        console.log("[clone] Skipping download and flash (device already has HA OS).");
+        updateStage("download", "completed", 100);
+        updateStage("flash", "completed", 100);
+      } else {
+        console.log("[clone] Starting download stage...");
+        await runDownloadStage();
+        checkCancelled();
+        console.log("[clone] Starting flash stage...");
+        await runFlashStage(devicePath);
+      }
       checkCancelled();
       console.log("[clone] Starting inject stage...");
       await runInjectStage(devicePath);

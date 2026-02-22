@@ -1,19 +1,23 @@
-import { useState } from "react";
-import { formatDistanceToNow } from "date-fns";
-import { useQueryClient } from "@tanstack/react-query";
-import { Plus, ArrowLeft, ExternalLink, HardDrive, Trash2 } from "lucide-react";
-import type { BackupSelection } from "@/types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { useBackups } from "@/hooks/use-backups";
 import { useImageCache } from "@/hooks/use-image-cache";
 import { discardImageCache } from "@/lib/api";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { BackupSelection, Device } from "@/types";
+import { useQueryClient } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
+import { ArrowLeft, ExternalLink, HardDrive, Plus, Trash2, Usb } from "lucide-react";
+import { useState } from "react";
 
 interface BackupSelectProps {
+  device: Device;
   selectedBackup: BackupSelection | null;
+  skipFlash: boolean;
   onSelect: (backup: BackupSelection) => void;
+  onSetSkipFlash: (skip: boolean) => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -32,7 +36,7 @@ function formatSize(sizeMB: number): string {
   return `${Math.round(sizeMB)} MB`;
 }
 
-export function BackupSelect({ selectedBackup, onSelect, onNext, onBack }: BackupSelectProps) {
+export function BackupSelect({ device, selectedBackup, skipFlash, onSelect, onSetSkipFlash, onNext, onBack }: BackupSelectProps) {
   const { data: backups, isLoading, error } = useBackups();
   const { data: imageCache } = useImageCache();
   const queryClient = useQueryClient();
@@ -174,6 +178,42 @@ export function BackupSelect({ selectedBackup, onSelect, onNext, onBack }: Backu
                   <Trash2 className="mr-1 h-3.5 w-3.5" />
                   {discarding ? "Discarding..." : "Discard"}
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Flash Status */}
+      {device.has_ha_os && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-medium">Flash Status</h2>
+          <Card size="sm">
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Usb className="text-muted-foreground h-4 w-4" />
+                  <div>
+                    <span className="text-sm font-medium">
+                      Device already has HA OS
+                    </span>
+                    <p className="text-muted-foreground text-xs">
+                      {skipFlash
+                        ? "Flash and download steps will be skipped."
+                        : "Device will be reflashed with a fresh image."}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="reflash" className="text-xs whitespace-nowrap">
+                    Reflash
+                  </label>
+                  <Switch
+                    id="reflash"
+                    checked={!skipFlash}
+                    onCheckedChange={(checked) => onSetSkipFlash(!checked)}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

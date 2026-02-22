@@ -28,6 +28,7 @@ export function DeviceCard({ device, selected, onSelect }: DeviceCardProps) {
               {device.vendor} {device.model}
             </span>
             <Badge variant="secondary">{device.size_human}</Badge>
+            {device.has_ha_os && <Badge variant="outline">HA OS</Badge>}
           </div>
           <p className="text-muted-foreground text-xs">
             {device.path} &middot; {device.serial}

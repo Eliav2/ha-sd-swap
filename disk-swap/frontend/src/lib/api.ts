@@ -20,11 +20,11 @@ export async function fetchBackups(): Promise<BackupsResponse> {
   return res.json();
 }
 
-export async function startClone(devicePath: string, backupSlug?: string): Promise<void> {
+export async function startClone(devicePath: string, backupSlug?: string, skipFlash?: boolean): Promise<void> {
   const res = await fetch("api/start-clone", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ device: devicePath, backup_slug: backupSlug }),
+    body: JSON.stringify({ device: devicePath, backup_slug: backupSlug, skip_flash: skipFlash }),
   });
   if (!res.ok) throw new Error(`Failed to start clone: ${res.status}`);
 }

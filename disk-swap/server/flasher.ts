@@ -118,6 +118,8 @@ export async function runPartprobe(devicePath: string): Promise<void> {
     await new Promise((r) => setTimeout(r, 2000));
     await $`partprobe ${devicePath}`;
   }
-  // Give the kernel a moment to settle
-  await new Promise((r) => setTimeout(r, 1000));
+  // Wait for udev to process all partition events
+  try {
+    await $`udevadm settle --timeout=5`;
+  } catch { /* udevadm may not be available */ }
 }
