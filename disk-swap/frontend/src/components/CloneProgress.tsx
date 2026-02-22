@@ -53,18 +53,23 @@ export function CloneProgress({ device, stages }: CloneProgressProps) {
       </Card>
 
       {!isFinished && (
-        <Button
-          variant="outline"
-          className="w-full"
-          disabled={cancelling}
-          onClick={handleCancel}
-        >
-          {cancelling
-            ? "Cancelling..."
-            : isWriting
-              ? "Cancel (will interrupt write)"
-              : "Cancel"}
-        </Button>
+        <>
+          <Button
+            variant="outline"
+            className="w-full"
+            disabled={cancelling}
+            onClick={handleCancel}
+          >
+            {cancelling
+              ? "Cancelling..."
+              : isWriting
+                ? "Cancel (will interrupt write)"
+                : "Cancel"}
+          </Button>
+          <p className="text-muted-foreground text-center text-xs">
+            You can safely navigate away — cloning continues in the background.
+          </p>
+        </>
       )}
     </div>
   );
