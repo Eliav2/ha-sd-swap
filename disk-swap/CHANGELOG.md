@@ -1,3 +1,16 @@
+## 1.0.0
+
+First stable release.
+
+- Clone your Home Assistant to a USB device directly from the HA UI
+- 4-stage pipeline: backup, download, flash, inject
+- Auto-restore on first boot via `.HA_RESTORE`
+- Real-time progress with speed and ETA
+- Cancel and resume at any stage
+- OS image caching (skip re-download)
+- Backup selection (existing or new)
+- Protection mode detection with direct link to settings
+
 ## 0.5.23
 
 - Auto-restore on first boot: inject `.HA_RESTORE` file so HA Core automatically restores configuration, accounts, automations, and database when the cloned device boots for the first time

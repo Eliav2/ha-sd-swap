@@ -1,5 +1,5 @@
 name: Disk Swap
-version: "0.5.23"
+version: "1.0.0"
 slug: disk-swap
 description: "Flash HA OS to any USB device — directly from Home Assistant, no PC required."
 url: "https://github.com/Eliav2/ha-disk-swap"
@@ -9,7 +9,7 @@ arch:
 init: false
 startup: application
 boot: manual
-stage: experimental
+stage: stable
 timeout: 300
 
 # Hardware access — full_access is required because USB devices
