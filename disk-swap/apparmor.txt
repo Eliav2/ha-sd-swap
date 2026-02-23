@@ -78,11 +78,16 @@ profile disk_swap flags=(attach_disconnected,mediate_deleted) {
   /usr/bin/mount ix,
   /usr/bin/umount ix,
   mount,
+  umount,
   /usr/sbin/e2fsck ix,
   /usr/bin/findmnt ix,
 
   # Backup volume access
   /backup/** rw,
+
+  # Loop device for partition mounting (avoids page cache aliasing)
+  /dev/loop* rw,
+  /dev/loop-control rw,
 
   # Temp mount point for target device
   /mnt/newsd/** rw,
