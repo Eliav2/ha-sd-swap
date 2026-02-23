@@ -36,7 +36,8 @@ async function getPartitionGeometry(partitionPath: string): Promise<{ offset: nu
   if (isNaN(start) || isNaN(size)) {
     throw new Error(`Could not determine geometry for ${partitionPath}`);
   }
-  return { offset: start, sizelimit: size };
+  // START is in 512-byte sectors; SIZE with -b is already in bytes
+  return { offset: start * 512, sizelimit: size };
 }
 
 /**
