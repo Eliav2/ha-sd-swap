@@ -320,8 +320,8 @@ async function runInjectStage(devicePath: string): Promise<void> {
       return;
     }
 
-    await injectBackup(devicePath, backupSlug, (percent) => {
-      updateStage("inject", "in_progress", percent);
+    await injectBackup(devicePath, backupSlug, (percent, description) => {
+      updateStage("inject", "in_progress", percent, undefined, undefined, description);
     }, abortController?.signal);
 
     updateStage("inject", "completed", 100);

@@ -75,7 +75,7 @@ export interface StageState {
 
 /** WebSocket messages (server → client) */
 export type WsMessage =
-  | { type: "stage_update"; stage: StageName; status: StageStatus; progress: number; speed?: number; eta?: number }
+  | { type: "stage_update"; stage: StageName; status: StageStatus; progress: number; speed?: number; eta?: number; description?: string }
   | { type: "error"; stage: StageName; message: string }
   | { type: "done"; backupName: string | null }
   | { type: "cancelled" };

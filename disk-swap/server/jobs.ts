@@ -43,10 +43,11 @@ export function updateStage(
   progress: number,
   speed?: number,
   eta?: number,
+  description?: string,
 ): void {
   if (!currentJob) return;
   currentJob.stages[stage] = { name: stage, status, progress };
-  broadcast({ type: "stage_update", stage, status, progress, speed, eta });
+  broadcast({ type: "stage_update", stage, status, progress, speed, eta, description });
 }
 
 /** Store the backup name on the current job (for frontend display). */

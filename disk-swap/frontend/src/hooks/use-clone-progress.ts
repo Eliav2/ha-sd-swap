@@ -25,7 +25,7 @@ export function useCloneProgress(active: boolean) {
       const msg: WsMessage = JSON.parse(event.data);
       switch (msg.type) {
         case "stage_update":
-          actions.updateStage(msg.stage, msg.status, msg.progress, msg.speed, msg.eta);
+          actions.updateStage(msg.stage, msg.status, msg.progress, msg.speed, msg.eta, msg.description);
           break;
         case "error":
           actions.updateStage(msg.stage, "failed", 0);

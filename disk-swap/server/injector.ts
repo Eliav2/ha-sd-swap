@@ -165,9 +165,10 @@ async function setupAutoRestore(backupSlug: string): Promise<void> {
 export async function injectBackup(
   devicePath: string,
   backupSlug: string,
-  progressCb: (percent: number) => void,
+  progressCb: (percent: number, description?: string) => void,
   signal?: AbortSignal,
 ): Promise<void> {
+  progressCb(0, "Finding data partition\u2026");
   const sourcePath = await findBackupFile(backupSlug);
   const destDir = `${MOUNT_POINT}/supervisor/backup`;
   const destPath = `${destDir}/${backupSlug}.tar`;
@@ -182,10 +183,14 @@ export async function injectBackup(
   const partitionPath = await findDataPartition(devicePath);
 
   try {
+    progressCb(1, "Preparing disk\u2026");
     await setupLoop(partitionPath, devicePath);
+
+    progressCb(2, "Mounting filesystem\u2026");
     await mount();
     await $`mkdir -p ${destDir}`;
 
+    progressCb(3, "Copying backup\u2026");
     const reader = sourceFile.stream().getReader();
     const writer = Bun.file(destPath).writer();
     let copied = 0;
@@ -199,15 +204,22 @@ export async function injectBackup(
       if (done) break;
       writer.write(value);
       copied += value.byteLength;
-      progressCb(Math.round((copied / totalBytes) * 100));
+      // File copy maps to 3–90%
+      const copyPercent = 3 + Math.round((copied / totalBytes) * 87);
+      progressCb(copyPercent, "Copying backup\u2026");
     }
 
     if (!signal?.aborted) {
       await writer.end();
+
+      progressCb(91, "Configuring auto-restore\u2026");
       await setupAutoRestore(backupSlug);
+
+      progressCb(95, "Flushing writes to disk\u2026");
       await $`sync`;
     }
   } finally {
+    progressCb(98, "Unmounting\u2026");
     await unmount();
     await teardownLoop();
   }
