@@ -3,6 +3,7 @@ import { readdir } from "node:fs/promises";
 
 const MOUNT_POINT = "/mnt/newsd";
 const BACKUP_DIR = "/backup";
+const LOOP_DEV = "/dev/loop0";
 
 /** Find the hassos-data partition on the target device. */
 export async function findDataPartition(devicePath: string): Promise<string> {
@@ -21,29 +22,56 @@ export async function findDataPartition(devicePath: string): Promise<string> {
   );
 }
 
-/** Ensure the partition has an ext4 filesystem (HA OS creates it on first boot). */
-async function ensureExt4(partitionPath: string): Promise<void> {
-  const fstype = (
-    await $`lsblk -nro FSTYPE ${partitionPath}`.nothrow().quiet().text()
-  ).trim();
-  if (fstype === "ext4") return;
-  console.log(`[inject] No ext4 on ${partitionPath} (got "${fstype}"), creating filesystem...`);
-  // Clear stale filesystem signatures that can corrupt the new ext4
-  await $`wipefs -a ${partitionPath}`.nothrow().quiet();
-  await $`mkfs.ext4 -F -L hassos-data ${partitionPath}`;
-  // Flush writes and drop kernel page cache so mount reads fresh ext4 metadata
-  // (without this, the kernel may serve stale cached blocks from the dd flash)
-  await $`sync`;
-  await $`blockdev --flushbufs ${partitionPath}`.nothrow().quiet();
-  const parentDev = partitionPath.replace(/\d+$/, "");
-  await $`blockdev --flushbufs ${parentDev}`.nothrow().quiet();
-  await $`sh -c "echo 3 > /proc/sys/vm/drop_caches"`.nothrow().quiet();
+/**
+ * Get the byte offset and size of a partition for use with losetup.
+ * Returns { offset, sizelimit } in bytes.
+ */
+async function getPartitionGeometry(partitionPath: string): Promise<{ offset: number; sizelimit: number }> {
+  const start = parseInt(
+    (await $`lsblk -nrbo START ${partitionPath}`.text()).trim(),
+  );
+  const size = parseInt(
+    (await $`lsblk -nrbo SIZE ${partitionPath}`.text()).trim(),
+  );
+  if (isNaN(start) || isNaN(size)) {
+    throw new Error(`Could not determine geometry for ${partitionPath}`);
+  }
+  return { offset: start, sizelimit: size };
 }
 
-async function mount(partitionPath: string): Promise<void> {
+/**
+ * Set up a loop device for the partition.
+ * This avoids page cache aliasing between the whole-disk device (written by dd
+ * during flash) and the partition device — the loop device has its own page
+ * cache, so mkfs.ext4 writes are not shadowed by stale cached blocks.
+ */
+async function setupLoop(partitionPath: string, devicePath: string): Promise<void> {
+  await $`losetup -d ${LOOP_DEV}`.nothrow().quiet();
+  const { offset, sizelimit } = await getPartitionGeometry(partitionPath);
+  console.log(`[inject] Setting up loop device: offset=${offset}, size=${sizelimit}`);
+  await $`losetup -o ${offset} --sizelimit ${sizelimit} ${LOOP_DEV} ${devicePath}`;
+}
+
+async function teardownLoop(): Promise<void> {
+  await $`losetup -d ${LOOP_DEV}`.nothrow().quiet();
+}
+
+/** Ensure the partition has an ext4 filesystem (HA OS creates it on first boot). */
+async function ensureExt4(): Promise<void> {
+  const fstype = (
+    await $`lsblk -nro FSTYPE ${LOOP_DEV}`.nothrow().quiet().text()
+  ).trim();
+  if (fstype === "ext4") return;
+  console.log(`[inject] No ext4 on ${LOOP_DEV} (got "${fstype}"), creating filesystem...`);
+  await $`wipefs -a ${LOOP_DEV}`.nothrow().quiet();
+  await $`mkfs.ext4 -F -L hassos-data ${LOOP_DEV}`;
+  await $`sync`;
+}
+
+async function mount(): Promise<void> {
   await $`mkdir -p ${MOUNT_POINT}`;
-  await ensureExt4(partitionPath);
-  await $`mount -t ext4 -o rw ${partitionPath} ${MOUNT_POINT}`;
+  await ensureExt4();
+  await $`mount -t ext4 -o rw ${LOOP_DEV} ${MOUNT_POINT}`;
 }
 
 async function unmount(): Promise<void> {
@@ -126,10 +154,11 @@ async function setupAutoRestore(backupSlug: string): Promise<void> {
 /**
  * Inject a backup .tar into the freshly flashed device's data partition.
  * 1. Find hassos-data partition
- * 2. Mount at /mnt/newsd
- * 3. Copy backup .tar into supervisor/backup/
- * 4. Set up .HA_RESTORE for auto-restore on first boot
- * 5. sync + unmount (always, via finally)
+ * 2. Set up loop device (avoids page cache aliasing after dd flash)
+ * 3. Mount at /mnt/newsd
+ * 4. Copy backup .tar into supervisor/backup/
+ * 5. Set up .HA_RESTORE for auto-restore on first boot
+ * 6. sync + unmount + teardown loop (always, via finally)
  */
 export async function injectBackup(
   devicePath: string,
@@ -151,7 +180,8 @@ export async function injectBackup(
   const partitionPath = await findDataPartition(devicePath);
 
   try {
-    await mount(partitionPath);
+    await setupLoop(partitionPath, devicePath);
+    await mount();
     await $`mkdir -p ${destDir}`;
 
     const reader = sourceFile.stream().getReader();
@@ -177,5 +207,6 @@ export async function injectBackup(
     }
   } finally {
     await unmount();
+    await teardownLoop();
   }
 }
