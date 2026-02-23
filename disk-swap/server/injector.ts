@@ -57,13 +57,9 @@ async function teardownLoop(): Promise<void> {
   await $`losetup -d ${LOOP_DEV}`.nothrow().quiet();
 }
 
-/** Ensure the partition has an ext4 filesystem (HA OS creates it on first boot). */
-async function ensureExt4(): Promise<void> {
-  const fstype = (
-    await $`lsblk -nro FSTYPE ${LOOP_DEV}`.nothrow().quiet().text()
-  ).trim();
-  if (fstype === "ext4") return;
-  console.log(`[inject] No ext4 on ${LOOP_DEV} (got "${fstype}"), creating filesystem...`);
+/** Create a fresh ext4 filesystem on the loop device. */
+async function createExt4(): Promise<void> {
+  console.log(`[inject] Creating ext4 filesystem on ${LOOP_DEV}...`);
   await $`wipefs -a ${LOOP_DEV}`.nothrow().quiet();
   await $`mkfs.ext4 -F -L hassos-data ${LOOP_DEV}`;
   await $`sync`;
@@ -71,7 +67,7 @@ async function ensureExt4(): Promise<void> {
 
 async function mount(): Promise<void> {
   await $`mkdir -p ${MOUNT_POINT}`;
-  await ensureExt4();
+  await createExt4();
   await $`mount -t ext4 -o rw ${LOOP_DEV} ${MOUNT_POINT}`;
 }
 
