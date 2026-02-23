@@ -31,9 +31,13 @@ async function ensureExt4(partitionPath: string): Promise<void> {
   // Clear stale filesystem signatures that can corrupt the new ext4
   await $`wipefs -a ${partitionPath}`.nothrow().quiet();
   await $`mkfs.ext4 -F -L hassos-data ${partitionPath}`;
-  // Flush block device cache so the kernel sees the fresh filesystem
+  // Flush writes and drop kernel page cache so mount reads fresh ext4 metadata
+  // (without this, the kernel may serve stale cached blocks from the dd flash)
   await $`sync`;
   await $`blockdev --flushbufs ${partitionPath}`.nothrow().quiet();
+  const parentDev = partitionPath.replace(/\d+$/, "");
+  await $`blockdev --flushbufs ${parentDev}`.nothrow().quiet();
+  await $`sh -c "echo 3 > /proc/sys/vm/drop_caches"`.nothrow().quiet();
 }
 
 async function mount(partitionPath: string): Promise<void> {
