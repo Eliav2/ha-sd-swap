@@ -1,9 +1,20 @@
+import { useEffect, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { formatDuration, intervalToDuration } from "date-fns";
 import type { StageState } from "@/types";
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+
+function useAnimatedDots(active: boolean) {
+  const [count, setCount] = useState(1);
+  useEffect(() => {
+    if (!active) { setCount(1); return; }
+    const id = setInterval(() => setCount((c) => (c % 3) + 1), 500);
+    return () => clearInterval(id);
+  }, [active]);
+  return ".".repeat(count);
+}
 
 function formatSpeed(bytesPerSec: number): string {
   const MB = 1024 * 1024;
@@ -25,6 +36,9 @@ interface StageRowProps {
 
 export function StageRow({ stage }: StageRowProps) {
   const eta = stage.status === "in_progress" && stage.eta ? formatEta(stage.eta) : null;
+  const hasEllipsis = stage.description?.endsWith("\u2026");
+  const dots = useAnimatedDots(stage.status === "in_progress" && !!hasEllipsis);
+  const description = hasEllipsis ? stage.description!.slice(0, -1) + dots : stage.description;
 
   const statusBadge = {
     pending: { variant: "secondary" as const, label: "Pending" },
@@ -44,9 +58,9 @@ export function StageRow({ stage }: StageRowProps) {
           <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
         </div>
       </div>
-      {stage.description && (
+      {description && (
         <p className="text-muted-foreground text-xs">
-          {stage.description}
+          {description}
           {stage.link && (
             <>
               {" "}
@@ -68,9 +82,9 @@ export function StageRow({ stage }: StageRowProps) {
           <ProgressLabel className="sr-only">{stage.label}</ProgressLabel>
           <ProgressValue />
         </Progress>
-        {stage.status === "in_progress" && (
+        {stage.status === "in_progress" && !!stage.speed && (
           <span className="text-muted-foreground w-16 shrink-0 text-right text-xs tabular-nums">
-            {formatSpeed(stage.speed ?? 0)}
+            {formatSpeed(stage.speed)}
           </span>
         )}
       </div>
