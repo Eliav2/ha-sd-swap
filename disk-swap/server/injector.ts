@@ -165,7 +165,7 @@ async function setupAutoRestore(backupSlug: string): Promise<void> {
 export async function injectBackup(
   devicePath: string,
   backupSlug: string,
-  progressCb: (percent: number, description?: string) => void,
+  progressCb: (percent: number, description?: string, speed?: number, eta?: number) => void,
   signal?: AbortSignal,
 ): Promise<void> {
   progressCb(0, "Finding data partition\u2026");
@@ -194,6 +194,9 @@ export async function injectBackup(
     const reader = sourceFile.stream().getReader();
     const writer = Bun.file(destPath).writer();
     let copied = 0;
+    let lastSpeedTime = Date.now();
+    let lastSpeedBytes = 0;
+    let speed = 0;
 
     while (true) {
       if (signal?.aborted) {
@@ -204,9 +207,21 @@ export async function injectBackup(
       if (done) break;
       writer.write(value);
       copied += value.byteLength;
+
+      // Calculate speed every 500ms
+      const now = Date.now();
+      const elapsed = now - lastSpeedTime;
+      if (elapsed >= 500) {
+        speed = ((copied - lastSpeedBytes) / elapsed) * 1000;
+        lastSpeedTime = now;
+        lastSpeedBytes = copied;
+      }
+
+      const remaining = totalBytes - copied;
+      const eta = speed > 0 ? remaining / speed : 0;
       // File copy maps to 3–90%
       const copyPercent = 3 + Math.round((copied / totalBytes) * 87);
-      progressCb(copyPercent, "Copying backup\u2026");
+      progressCb(copyPercent, "Copying backup\u2026", speed, eta);
     }
 
     if (!signal?.aborted) {
