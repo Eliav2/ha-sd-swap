@@ -1,3 +1,7 @@
+## 1.0.1
+
+- Fix inject: drop kernel page cache after mkfs to prevent stale reads on freshly flashed devices
+
 ## 1.0.0
 
 First stable release.
