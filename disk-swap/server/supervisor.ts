@@ -127,9 +127,9 @@ export async function pollJob(jobId: string): Promise<SupervisorJobStatus> {
 }
 
 /** Get addon self-info (includes protected mode status). */
-export async function getAddonInfo(): Promise<{ protected: boolean; slug: string }> {
-  const data = await supervisorGet<{ protected: boolean; slug: string }>("/addons/self/info");
-  return { protected: data.protected, slug: data.slug };
+export async function getAddonInfo(): Promise<{ protected: boolean; slug: string; version: string }> {
+  const data = await supervisorGet<{ protected: boolean; slug: string; version: string }>("/addons/self/info");
+  return { protected: data.protected, slug: data.slug, version: data.version };
 }
 
 export async function getInfo(): Promise<SupervisorInfo> {
@@ -189,5 +189,6 @@ export async function getSystemInfo() {
     free_space_human: formatBytes(Math.round(hostInfo.disk_free * 1024 ** 3)),
     protected: addonInfo.protected,
     addon_slug: addonInfo.slug,
+    addon_version: addonInfo.version,
   };
 }

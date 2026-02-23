@@ -20,7 +20,12 @@ export function DeviceList({ selectedDevice, onSelect, onNext }: DeviceListProps
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Disk Swap</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Disk Swap
+          {systemInfo?.addon_version && (
+            <span className="text-muted-foreground ml-2 text-xs font-normal">v{systemInfo.addon_version}</span>
+          )}
+        </h1>
         <p className="text-muted-foreground text-sm">
           Clone your Home Assistant OS to a USB device.
         </p>

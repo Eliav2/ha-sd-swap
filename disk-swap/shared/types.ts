@@ -38,6 +38,7 @@ export interface SystemInfoResponse {
   free_space_human: string;
   protected: boolean;
   addon_slug: string;
+  addon_version: string;
 }
 
 /** Supervisor GET /info response data */
