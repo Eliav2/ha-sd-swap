@@ -131,12 +131,12 @@ async function setupAutoRestore(backupSlug: string): Promise<void> {
 
   // Hard-link backup tar for HA Core access (same partition, no extra disk space)
   try {
-    await $`ln ${supervisorTar} ${coreTar}`;
+    await $`ln -f ${supervisorTar} ${coreTar}`;
     console.log("[inject] Hard-linked backup tar to homeassistant/backups/");
   } catch {
     // Fallback to copy if hard-link fails
     console.log("[inject] Hard-link failed, copying backup tar...");
-    await $`cp ${supervisorTar} ${coreTar}`;
+    await $`cp -f ${supervisorTar} ${coreTar}`;
   }
 
   // Write .HA_RESTORE instruction file
@@ -194,7 +194,8 @@ export async function injectBackup(
     const reader = sourceFile.stream().getReader();
     const writer = Bun.file(destPath).writer();
     let copied = 0;
-    let lastSpeedTime = Date.now();
+    const copyStart = Date.now();
+    let lastSpeedTime = copyStart;
     let lastSpeedBytes = 0;
     let speed = 0;
 
@@ -208,13 +209,18 @@ export async function injectBackup(
       writer.write(value);
       copied += value.byteLength;
 
-      // Calculate speed every 500ms
+      // Calculate speed: interval-based after first 500ms, average-based before
       const now = Date.now();
       const elapsed = now - lastSpeedTime;
       if (elapsed >= 500) {
         speed = ((copied - lastSpeedBytes) / elapsed) * 1000;
         lastSpeedTime = now;
         lastSpeedBytes = copied;
+      } else if (speed === 0 && copied > 0) {
+        const totalElapsed = now - copyStart;
+        if (totalElapsed > 0) {
+          speed = (copied / totalElapsed) * 1000;
+        }
       }
 
       const remaining = totalBytes - copied;

@@ -45,6 +45,10 @@ export async function discardImageCache(): Promise<void> {
   if (!res.ok) throw new Error(`Failed to discard image cache: ${res.status}`);
 }
 
+export async function clearCurrentJob(): Promise<void> {
+  await fetch("api/jobs/current", { method: "DELETE" });
+}
+
 export async function fetchCurrentJob(): Promise<Job | null> {
   const res = await fetch("api/jobs/current");
   if (res.status === 404) return null;

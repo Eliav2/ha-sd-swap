@@ -89,7 +89,7 @@ export interface Job {
   id: string;
   status: JobStatus;
   device: Device;
-  stages: Record<StageName, { name: StageName; status: StageStatus; progress: number }>;
+  stages: Record<StageName, { name: StageName; status: StageStatus; progress: number; description?: string }>;
   error: string | null;
   backupName: string | null;
   createdAt: number;

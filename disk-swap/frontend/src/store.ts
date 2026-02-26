@@ -1,5 +1,6 @@
 import { Store } from "@tanstack/react-store";
 import type { BackupSelection, Device, ImageCacheStatus, Job, Screen, StageState, SystemInfoResponse } from "@/types";
+import { clearCurrentJob } from "@/lib/api";
 
 export interface AppState {
   screen: Screen;
@@ -174,6 +175,7 @@ export const actions = {
         ...init,
         status: jobStage?.status ?? "pending",
         progress: jobStage?.progress ?? 0,
+        ...(jobStage?.description && { description: jobStage.description }),
       };
     });
 
@@ -188,6 +190,7 @@ export const actions = {
   },
 
   reset() {
+    clearCurrentJob().catch(() => {});
     appStore.setState(() => ({
       screen: "device_select" as const,
       selectedDevice: null,

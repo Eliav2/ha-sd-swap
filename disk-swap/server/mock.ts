@@ -60,6 +60,6 @@ export async function getSystemInfo() {
     free_space_human: "23.0 GB",
     protected: false,
     addon_slug: "64504a20_disk-swap",
-    addon_version: "1.0.1-dev9",
+    addon_version: "1.0.1-dev10",
   };
 }

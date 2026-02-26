@@ -46,7 +46,7 @@ export function updateStage(
   description?: string,
 ): void {
   if (!currentJob) return;
-  currentJob.stages[stage] = { name: stage, status, progress };
+  currentJob.stages[stage] = { name: stage, status, progress, ...(description != null && { description }) };
   broadcast({ type: "stage_update", stage, status, progress, speed, eta, description });
 }
 
@@ -77,6 +77,11 @@ export function clearJob(): void {
   if (!currentJob) return;
   currentJob = null;
   broadcast({ type: "cancelled" });
+}
+
+/** Dismiss a finished job without broadcasting (used by "Start Over"). */
+export function dismissJob(): void {
+  currentJob = null;
 }
 
 /** Subscribe to job updates. Returns an unsubscribe function. */

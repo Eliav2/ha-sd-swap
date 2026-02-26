@@ -9,7 +9,7 @@ process.on("unhandledRejection", (err) => {
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import { upgradeWebSocket, websocket } from "hono/bun";
-import { getCurrentJob, subscribe } from "./jobs.ts";
+import { getCurrentJob, dismissJob, subscribe } from "./jobs.ts";
 import { runClonePipeline, cancelClone } from "./clone.ts";
 import { getImageCacheInfo, discardCachedImage } from "./images.ts";
 
@@ -145,6 +145,11 @@ app.get("/api/jobs/current", (c) => {
     return c.json({ error: "No active job" }, 404);
   }
   return c.json(job);
+});
+
+app.delete("/api/jobs/current", (c) => {
+  dismissJob();
+  return c.json({ ok: true });
 });
 
 // --- WebSocket for real-time progress ---
