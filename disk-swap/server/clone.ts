@@ -35,6 +35,7 @@ const MIN_DOWNLOAD_SPACE = 600 * 1024 * 1024; // 600 MB
 // Pipeline context — module-level since only one clone runs at a time
 let backupSlug = "";
 let boardSlug = "";
+let machineName = ""; // raw machine name (e.g. "qemuarm-64") used for HA Core Docker image
 let osVersion = "";
 let localImagePath = "";
 
@@ -64,6 +65,7 @@ export function cancelClone(): void {
   clearJob();
   // Reset module-level context
   backupSlug = "";
+  machineName = "";
   boardSlug = "";
   osVersion = "";
   localImagePath = "";
@@ -130,8 +132,14 @@ export async function runClonePipeline(
       checkCancelled();
 
       if (skipFlash) {
-        // Device already has HA OS — skip download and flash
+        // Device already has HA OS — skip download and flash, but still need machine name
         console.log("[clone] Skipping download and flash (device already has HA OS).");
+        if (!isDev) {
+          const info = await getInfo();
+          machineName = info.machine;
+        } else {
+          machineName = "rpi4-64";
+        }
         updateStage("download", "completed", 100);
         updateStage("flash", "completed", 100);
       } else {
@@ -181,7 +189,7 @@ async function runCacheStage(devicePath: string): Promise<void> {
   }
 
   try {
-    await precacheImages(devicePath, backupSlug, boardSlug, (percent, description, speed, eta) => {
+    await precacheImages(devicePath, backupSlug, machineName, (percent, description, speed, eta) => {
       updateStage("cache", "in_progress", percent, speed, eta, description);
     }, abortController?.signal);
     updateStage("cache", "completed", 100);
@@ -258,10 +266,12 @@ async function runDownloadStage(): Promise<void> {
 
   try {
     if (isDev) {
+      machineName = "rpi4-64";
       boardSlug = "rpi4-64";
       osVersion = "17.1";
     } else {
       const [info, osInfo] = await Promise.all([getInfo(), getOsInfo()]);
+      machineName = info.machine;
       boardSlug = machineToBoardSlug(info.machine);
       osVersion = osInfo.version;
     }
