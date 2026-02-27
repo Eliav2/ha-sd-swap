@@ -26,7 +26,7 @@ export async function findDataPartition(devicePath: string): Promise<string> {
  * Get the byte offset and size of a partition for use with losetup.
  * Returns { offset, sizelimit } in bytes.
  */
-async function getPartitionGeometry(partitionPath: string): Promise<{ offset: number; sizelimit: number }> {
+export async function getPartitionGeometry(partitionPath: string): Promise<{ offset: number; sizelimit: number }> {
   const start = parseInt(
     (await $`lsblk -nrbo START ${partitionPath}`.text()).trim(),
   );
@@ -90,7 +90,7 @@ async function unmount(): Promise<void> {
  * HA stores backups as {slug}.tar, but automatic backups may use name-based filenames.
  * Falls back to searching all tars in /backup/ by reading their backup.json.
  */
-async function findBackupFile(slug: string): Promise<string> {
+export async function findBackupFile(slug: string): Promise<string> {
   // Fast path: check {slug}.tar directly
   const directPath = `${BACKUP_DIR}/${slug}.tar`;
   if (await Bun.file(directPath).exists()) return directPath;
