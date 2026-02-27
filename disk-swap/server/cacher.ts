@@ -166,7 +166,8 @@ export async function precacheImages(
         "images", "pull",
         coreImage,
       ],
-      { stdout: "inherit", stderr: "inherit", signal },
+      // No signal: cache is best-effort, killing ctr mid-download causes partial blobs
+      { stdout: "inherit", stderr: "inherit" },
     );
 
     // Poll content store size vs manifest total for progress (20–85%)
@@ -196,6 +197,7 @@ export async function precacheImages(
       clearInterval(pollInterval);
     }
 
+    console.log(`[cache] ctr pull exited with code ${pullProc.exitCode}`);
     if (pullProc.exitCode !== 0) {
       throw new Error(`ctr pull failed with exit code ${pullProc.exitCode}`);
     }
