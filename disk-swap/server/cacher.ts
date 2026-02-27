@@ -199,7 +199,16 @@ export async function precacheImages(
 
     console.log(`[cache] ctr pull exited with code ${pullProc.exitCode}`);
     if (pullProc.exitCode !== 0) {
-      throw new Error(`ctr pull failed with exit code ${pullProc.exitCode}`);
+      // ctr pull may fail at the unpack step (overlayfs lchown inside Docker)
+      // even after blobs + image record are fully written. Check if the image
+      // record was created — if so, treat as success. Docker will unpack from
+      // the content store on first boot (full host capabilities, no lchown issue).
+      const lsResult = await $`ctr --address ${CTR_SOCKET} --namespace moby images ls`.nothrow().text();
+      if (lsResult.includes(coreImage)) {
+        console.log(`[cache] ctr pull failed at unpack (expected inside Docker) but image record exists — success`);
+      } else {
+        throw new Error(`ctr pull failed with exit code ${pullProc.exitCode} and image record not found`);
+      }
     }
 
     const blobCount = (await $`ls ${CONTENT_STORE_BLOBS} 2>/dev/null | wc -l`.nothrow().text()).trim();

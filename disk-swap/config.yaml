@@ -23,6 +23,8 @@ udev: true
 privileged:
   - SYS_RAWIO
   - SYS_ADMIN
+  - NET_ADMIN
+  - SYS_RESOURCE
 
 # Ingress web UI
 ingress: true
