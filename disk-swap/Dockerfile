@@ -1,11 +1,4 @@
 ARG BUILD_FROM
-
-# Extract containerd v2.2.1 binaries from the official Alpine-based image.
-# This image is compiled on Alpine (musl), so the binaries are compatible with
-# HA addon containers. Version must match HA OS (Docker 29.x → containerd 2.2.1)
-# to ensure BoltDB schema compatibility when pre-caching Docker images.
-FROM containerd/containerd:2.2.1 AS containerd-bins
-
 FROM $BUILD_FROM
 
 # Install system dependencies:
@@ -38,9 +31,16 @@ RUN ARCH=$(uname -m) && \
     rm /tmp/crane.tar.gz && \
     chmod +x /usr/local/bin/crane
 
-# Copy containerd + ctr from the versioned image (musl-compatible, version-matched)
-COPY --from=containerd-bins /usr/local/bin/containerd /usr/local/bin/containerd
-COPY --from=containerd-bins /usr/local/bin/ctr /usr/local/bin/ctr
+# Install containerd v2.2.1 + ctr from Docker's official static release.
+# These are statically linked binaries (no glibc dependency) — run on any Linux
+# including Alpine/musl. Version matches HA OS (Docker 29.x → containerd 2.2.1)
+# to ensure BoltDB schema compatibility when pre-caching Docker images.
+RUN ARCH=$(uname -m) && \
+    DOCKER_ARCH=$([ "$ARCH" = "aarch64" ] && echo "aarch64" || echo "x86_64") && \
+    curl -fsSL "https://download.docker.com/linux/static/stable/${DOCKER_ARCH}/docker-29.1.3.tgz" | \
+    tar xz docker/containerd docker/ctr && \
+    mv docker/containerd docker/ctr /usr/local/bin/ && \
+    rm -rf docker/
 
 # Install Bun runtime
 ARG BUN_VERSION=1.2.4
