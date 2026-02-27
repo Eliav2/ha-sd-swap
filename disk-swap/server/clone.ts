@@ -27,6 +27,7 @@ import {
 } from "./images.ts";
 import { flash, runPartprobe } from "./flasher.ts";
 import { injectBackup } from "./injector.ts";
+import { precacheImages } from "./cacher.ts";
 
 const isDev = process.env.DEV === "1";
 const MIN_DOWNLOAD_SPACE = 600 * 1024 * 1024; // 600 MB
@@ -143,6 +144,9 @@ export async function runClonePipeline(
       checkCancelled();
       console.log("[clone] Starting inject stage...");
       await runInjectStage(devicePath);
+      checkCancelled();
+      console.log("[clone] Starting cache stage...");
+      await runCacheStage(devicePath);
       completeJob();
       console.log("[clone] Pipeline completed successfully!");
     } catch (err) {
@@ -164,8 +168,32 @@ export async function runClonePipeline(
   return job;
 }
 
+async function runCacheStage(devicePath: string): Promise<void> {
+  updateStage("cache", "in_progress", 0);
+
+  if (isDev) {
+    for (let p = 0; p <= 100; p += 25) {
+      await new Promise((r) => setTimeout(r, 200));
+      updateStage("cache", "in_progress", Math.min(p, 99));
+    }
+    updateStage("cache", "completed", 100);
+    return;
+  }
+
+  try {
+    await precacheImages(devicePath, backupSlug, boardSlug, (percent, description, speed, eta) => {
+      updateStage("cache", "in_progress", percent, speed, eta, description);
+    }, abortController?.signal);
+    updateStage("cache", "completed", 100);
+  } catch (err) {
+    // Cache is non-fatal — the disk is still fully usable, just slower first boot
+    console.warn("[cache] Pre-cache failed (non-fatal):", err);
+    updateStage("cache", "completed", 100);
+  }
+}
+
 function findActiveStage(job: Job): StageName {
-  for (const name of ["backup", "download", "flash", "inject"] as StageName[]) {
+  for (const name of ["backup", "download", "flash", "inject", "cache"] as StageName[]) {
     if (job.stages[name].status === "in_progress") return name;
   }
   return "backup";

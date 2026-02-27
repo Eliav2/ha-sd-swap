@@ -75,7 +75,7 @@ export interface NetworkInfo {
 
 // --- Clone Job Types ---
 
-export type StageName = "backup" | "download" | "flash" | "inject";
+export type StageName = "backup" | "download" | "flash" | "inject" | "cache";
 export type StageStatus = "pending" | "in_progress" | "completed" | "failed";
 
 export interface StageState {

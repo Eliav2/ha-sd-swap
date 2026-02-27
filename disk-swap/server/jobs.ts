@@ -27,6 +27,7 @@ export function createJob(device: Device): Job {
       download: { name: "download", status: "pending", progress: 0 },
       flash: { name: "flash", status: "pending", progress: 0 },
       inject: { name: "inject", status: "pending", progress: 0 },
+      cache: { name: "cache", status: "pending", progress: 0 },
     },
     error: null,
     backupName: null,
