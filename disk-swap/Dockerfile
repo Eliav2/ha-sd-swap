@@ -19,6 +19,7 @@ RUN apk add --no-cache \
     pv \
     jq \
     e2fsprogs \
+    e2fsprogs-extra \
     curl \
     parted \
     mount

@@ -11,10 +11,10 @@ const rawArch = (await $`uname -m`.text()).trim();
 const SUPERVISOR_ARCH = ARCH_MAP[rawArch] ?? rawArch;
 const SUPERVISOR_IMAGE = `ghcr.io/home-assistant/${SUPERVISOR_ARCH}-hassio-supervisor:latest`;
 
-// HA Core gets 172.30.32.1 (first available); Supervisor is pinned to .2 via --ip.
-// The Supervisor hardcodes 172.30.32.1 as the homeassistant container IP, so
-// homeassistant must claim that address. We poll HA Core at .1:8123.
-const SUPERVISOR_IP = "172.30.32.1";
+// HA Core runs in Docker --network=host mode (Supervisor default when no HA OS is present).
+// It binds to 0.0.0.0:8123 in the outer container's network namespace.
+// Poll and proxy via 127.0.0.1:8123.
+const SUPERVISOR_IP = "127.0.0.1";
 
 // Module-level state for the "user is done" deferred and proxy URL
 let sandboxDoneResolve: (() => void) | null = null;
@@ -34,9 +34,26 @@ export function getSandboxProxyUrl(): string | null {
 async function setupLoop(devicePath: string): Promise<void> {
   await $`losetup -d ${LOOP_DEV}`.nothrow().quiet();
   const partitionPath = await findDataPartition(devicePath);
+
+  // Grow the data partition to fill available disk space.
+  // Freshly-flashed HA OS images have a small (~1.3GB) fixed data partition.
+  // The sandbox needs several GB for Docker image storage.
+  // sfdisk ", +" extends the partition to the end of the disk and also fixes
+  // the GPT secondary header location (which parted fails to handle here).
+  const partNum = partitionPath.match(/(\d+)$/)?.[1];
+  if (partNum) {
+    await $`echo ', +' | sfdisk --force -N ${partNum} ${devicePath}`.nothrow().quiet();
+    console.log(`[sandbox] Grew data partition ${partitionPath} to fill disk`);
+  }
+
   const { offset, sizelimit } = await getPartitionGeometry(partitionPath);
   console.log(`[sandbox] Loop device: offset=${offset}, sizelimit=${sizelimit}`);
   await $`losetup -o ${offset} --sizelimit ${sizelimit} ${LOOP_DEV} ${devicePath}`;
+
+  // Resize the ext4 filesystem to fill the newly expanded partition.
+  await $`e2fsck -f -p ${LOOP_DEV}`.nothrow().quiet();
+  await $`resize2fs ${LOOP_DEV}`.nothrow().quiet();
+  console.log(`[sandbox] Filesystem resized to fill partition`);
 }
 
 async function mountPartition(): Promise<void> {
@@ -61,7 +78,12 @@ async function teardownLoop(): Promise<void> {
 async function writeDaemonConfig(): Promise<void> {
   const config = {
     "storage-driver": "overlay2",
-    "iptables": true,
+    // Disable inner dockerd iptables management. When enabled, dockerd pollutes the
+    // addon container's network namespace with DOCKER chains containing blanket DROP
+    // rules that block the outer Supervisor's ingress proxy from reaching this addon
+    // (causing the panel to go blank during and after sandbox execution).
+    // We add only the minimal MASQUERADE rules manually after dockerd starts.
+    "iptables": false,
     "seccomp-profile": "unconfined",
     "dns": ["8.8.8.8", "8.8.4.4"],
     "data-root": `${DATA_MOUNT}/docker`,
@@ -135,7 +157,17 @@ export async function runSandboxStage(
 
     // 3. Set up required host paths for Supervisor plugins
     await $`mkdir -p /run/dbus`.nothrow().quiet();
-    await $`mkdir -p /tmp/sandbox/data`.nothrow().quiet();
+    // Supervisor data dir on target disk (avoids the 2GB tmpfs size limit).
+    // audio/external must pre-exist: audio plugin fails on CAP_SYS_NICE and never
+    // creates it, but HA Core bind-mounts it and errors out if the path is missing.
+    // cid_files/homeassistant.cid must pre-exist as an empty file: Docker bind-mounts
+    // a file (not a directory) here, and refuses to create a non-existent file source.
+    // config.json removal forces fresh-boot mode (not "Detected Supervisor restart"):
+    // in restart mode the Supervisor defers Core start to a ~5-minute periodic watchdog;
+    // in fresh mode it starts Core immediately during initialization.
+    await $`mkdir -p /mnt/newsd/sandbox/audio/external /mnt/newsd/sandbox/cid_files`.nothrow().quiet();
+    await $`touch /mnt/newsd/sandbox/cid_files/homeassistant.cid`.nothrow().quiet();
+    await $`rm -f /mnt/newsd/sandbox/config.json`.nothrow().quiet();
     // Observer plugin needs /run/docker.sock → point to our DinD socket
     try {
       await $`ln -sf ${DIND_SOCK} /run/docker.sock`.quiet();
@@ -170,13 +202,30 @@ export async function runSandboxStage(
       [
         "unshare", "--mount",
         "/bin/sh", "-c",
-        `mount -o remount,rw /proc/sys && mount -o remount,rw /sys/fs/cgroup && exec ${dockerdArgs}`,
+        // mount --make-shared /mnt/newsd: Docker bind-mounts require the parent mount
+        // to be shared or slave. After unshare --mount, /mnt/newsd is private.
+        // Making it shared allows the inner dockerd to bind-mount subdirectories
+        // (e.g. /mnt/newsd/sandbox/share) into HA Core's container.
+        `mount -o remount,rw /proc/sys && mount -o remount,rw /sys/fs/cgroup && sysctl -w net.ipv4.conf.default.rp_filter=0 && mount --make-shared /mnt/newsd && exec ${dockerdArgs}`,
       ],
       { stdout: Bun.file("/tmp/dind.log"), stderr: Bun.file("/tmp/dind.log") },
     );
 
     await waitForDockerd(30_000);
     console.log("[sandbox] Inner dockerd ready");
+
+    // Add the minimal NAT rules inner containers need to reach the internet.
+    // We use --iptables=false on dockerd so it doesn't add DOCKER chains with DROP
+    // rules. Instead we only MASQUERADE traffic from inner networks leaving eth0.
+    await $`iptables -t nat -A POSTROUTING -s 172.30.32.0/23 -o eth0 -j MASQUERADE`.nothrow().quiet();
+    await $`iptables -t nat -A POSTROUTING -s 10.99.99.0/24 -o eth0 -j MASQUERADE`.nothrow().quiet();
+
+    // Overwrite resolv.conf with real DNS BEFORE any docker pull.
+    // The outer container's /etc/resolv.conf contains 127.0.0.11 (Docker's embedded
+    // DNS). If a previous sandbox run (or the hassio bridge creation below) disrupts
+    // routing, 127.0.0.11 may become unreachable and pull fails with "server
+    // misbehaving". Using 8.8.8.8 directly avoids any such routing dependency.
+    await Bun.write("/etc/resolv.conf", "nameserver 8.8.8.8\nnameserver 8.8.4.4\nsearch local.hass.io\n");
 
     if (signal.aborted) throw new Error("Cancelled");
 
@@ -201,17 +250,27 @@ export async function runSandboxStage(
       hassio`.nothrow().quiet();
 
     // The hassio bridge adds a /23 route that overlaps with the outer HA network
-    // (also 172.30.32.0/23). This causes the kernel to route traffic for the outer
-    // gateway (172.30.32.1) to the hassio bridge instead of eth0, breaking internet.
-    // Fix: delete the broad /23 hassio route, add a /24 for inner traffic only,
-    // and pin the gateway IP to eth0 so the default route stays functional.
+    // (also 172.30.32.0/23). We replace it with a precise /24 for the inner subnet:
+    //
+    //   172.30.32.0/24 dev hassio — inner containers (.1 HA Core, .2 Supervisor,
+    //       .3+ plugins) reach each other and their gateway via the hassio bridge.
+    //
+    // The outer Supervisor is also at 172.30.32.2 (IP collision). A plain host route
+    // "172.30.32.2 dev eth0" would break MASQUERADE replies: conntrack de-NATs
+    // internet replies (dst=addon_ip → dst=172.30.32.2) and the host route sends
+    // them out eth0 instead of into the hassio bridge. The inner Supervisor loses
+    // internet connectivity while the DNS container (.3, no host route) works fine.
+    //
+    // Fix: policy routing table 101 handles ingress responses only.
+    // - OUTPUT packets from port 8099 (our HTTP/WS server) to 172.30.32.2 are marked 2
+    //   → routed via table 101 → eth0 (outer Supervisor receives the response).
+    // - MASQUERADE de-NAT'd replies (FORWARD path, no OUTPUT mark) use the main
+    //   routing table → /24 dev hassio → inner Supervisor receives them.
     await $`ip route del 172.30.32.0/23 dev hassio`.nothrow().quiet();
     await $`ip route add 172.30.32.0/24 dev hassio src 172.30.33.254`.nothrow().quiet();
-    await $`ip route add 172.30.32.1 dev eth0`.nothrow().quiet();
-
-    // The inner dockerd's iptables rules break the outer Docker's embedded DNS
-    // (127.0.0.11). Switch to real resolvers so subsequent pulls and curl work.
-    await Bun.write("/etc/resolv.conf", "nameserver 8.8.8.8\nnameserver 8.8.4.4\nsearch local.hass.io\n");
+    await $`iptables -t mangle -A OUTPUT -d 172.30.32.2 -p tcp --sport 8099 -j MARK --set-mark 2`.nothrow().quiet();
+    await $`ip rule add fwmark 2 lookup 101`.nothrow().quiet();
+    await $`ip route add 172.30.32.2 dev eth0 table 101`.nothrow().quiet();
 
     console.log("[sandbox] hassio network ready");
 
@@ -228,12 +287,12 @@ export async function runSandboxStage(
       --privileged \
       --security-opt apparmor=unconfined \
       --security-opt seccomp=unconfined \
-      -e SUPERVISOR_SHARE=/tmp/sandbox/data \
+      -e SUPERVISOR_SHARE=/mnt/newsd/sandbox \
       -e SUPERVISOR_NAME=hassio_supervisor \
       -e SUPERVISOR_MACHINE=${machine} \
       -e SUPERVISOR_WAIT_BOOT=180 \
       -v ${DIND_SOCK}:/run/docker.sock:rw \
-      -v /tmp/sandbox/data:/data:rw \
+      -v /mnt/newsd/sandbox:/data:rw \
       -v /etc/machine-id:/etc/machine-id:ro \
       ${SUPERVISOR_IMAGE}`;
     console.log("[sandbox] Supervisor container started");
@@ -316,6 +375,15 @@ export async function runSandboxStage(
       ]);
       try { dockerdProc.kill("SIGKILL"); } catch { /* already exited */ }
     }
+
+    // Remove the MASQUERADE rules, mangle marks, policy routes, and hassio route we added.
+    await $`iptables -t nat -D POSTROUTING -s 172.30.32.0/23 -o eth0 -j MASQUERADE`.nothrow().quiet();
+    await $`iptables -t nat -D POSTROUTING -s 10.99.99.0/24 -o eth0 -j MASQUERADE`.nothrow().quiet();
+    await $`iptables -t mangle -D OUTPUT -d 172.30.32.2 -p tcp --sport 8099 -j MARK --set-mark 2`.nothrow().quiet();
+    await $`ip rule del fwmark 2 lookup 101`.nothrow().quiet();
+    await $`ip route del 172.30.32.2 dev eth0 table 101`.nothrow().quiet();
+    await $`ip route del 172.30.32.0/24 dev hassio`.nothrow().quiet();
+    console.log("[sandbox] iptables/route cleanup done");
 
     // Flush and unmount
     await unmountSafe();
