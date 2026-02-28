@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useStore } from "@tanstack/react-store";
 import type { Device, StageState } from "@/types";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StageRow } from "@/components/StageRow";
-import { cancelClone } from "@/lib/api";
-import { actions } from "@/store";
+import { cancelClone, signalSandboxDone } from "@/lib/api";
+import { actions, appStore } from "@/store";
+import { useSystemInfo } from "@/hooks/use-system-info";
 
 interface CloneProgressProps {
   device: Device;
@@ -13,6 +15,13 @@ interface CloneProgressProps {
 
 export function CloneProgress({ device, stages }: CloneProgressProps) {
   const [cancelling, setCancelling] = useState(false);
+  const [sandboxDone, setSandboxDone] = useState(false);
+  const isJobDone = useStore(appStore, (s) => s.isJobDone);
+  const backupName = useStore(appStore, (s) => s.backupName);
+  const { data: systemInfo } = useSystemInfo();
+  const logsUrl = systemInfo?.addon_slug
+    ? `/config/app/${systemInfo.addon_slug}/logs`
+    : undefined;
 
   const activeStage = stages.find((s) => s.status === "in_progress");
   const isWriting = activeStage?.name === "flash" || activeStage?.name === "inject";
@@ -20,6 +29,11 @@ export function CloneProgress({ device, stages }: CloneProgressProps) {
   const isFinished = stages.every(
     (s) => s.status === "completed" || s.status === "failed",
   );
+
+  // Sandbox is "ready" when the stage is in_progress with description "sandbox_ready"
+  const sandboxStage = stages.find((s) => s.name === "sandbox");
+  const isSandboxReady =
+    sandboxStage?.status === "in_progress" && sandboxStage?.description === "sandbox_ready";
 
   async function handleCancel() {
     setCancelling(true);
@@ -29,6 +43,11 @@ export function CloneProgress({ device, stages }: CloneProgressProps) {
     } catch {
       setCancelling(false);
     }
+  }
+
+  async function handleSandboxDone() {
+    setSandboxDone(true);
+    await signalSandboxDone();
   }
 
   return (
@@ -48,12 +67,39 @@ export function CloneProgress({ device, stages }: CloneProgressProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           {stages.map((stage) => (
-            <StageRow key={stage.name} stage={stage} />
+            <StageRow key={stage.name} stage={stage} logsUrl={logsUrl} />
           ))}
         </CardContent>
       </Card>
 
-      {!isFinished && (
+      {isSandboxReady && (
+        <Card>
+          <CardHeader>
+            <CardTitle>HA is running — restore your backup</CardTitle>
+            <CardDescription>
+              A live Home Assistant instance is running inside the add-on.
+              Complete onboarding and restore your backup below, then click Done.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <iframe
+              src="api/sandbox/"
+              className="w-full rounded-md border"
+              style={{ height: "600px" }}
+              title="Home Assistant"
+            />
+            <Button
+              className="w-full"
+              disabled={sandboxDone}
+              onClick={handleSandboxDone}
+            >
+              {sandboxDone ? "Shutting down sandbox…" : "Done — Restore Complete"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {!isFinished && !isSandboxReady && (
         <>
           <Button
             variant="outline"
@@ -73,7 +119,16 @@ export function CloneProgress({ device, stages }: CloneProgressProps) {
         </>
       )}
 
-      {hasFailed && (
+      {isJobDone && (
+        <Button
+          className="w-full"
+          onClick={() => actions.complete(backupName)}
+        >
+          Next
+        </Button>
+      )}
+
+      {hasFailed && !isJobDone && (
         <Button
           variant="outline"
           className="w-full"

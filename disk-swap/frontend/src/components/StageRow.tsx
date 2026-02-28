@@ -32,9 +32,10 @@ function formatEta(seconds: number): string {
 
 interface StageRowProps {
   stage: StageState;
+  logsUrl?: string;
 }
 
-export function StageRow({ stage }: StageRowProps) {
+export function StageRow({ stage, logsUrl }: StageRowProps) {
   const eta = stage.status === "in_progress" && stage.eta ? formatEta(stage.eta) : null;
   const hasEllipsis = stage.description?.endsWith("\u2026");
   const dots = useAnimatedDots(stage.status === "in_progress" && !!hasEllipsis);
@@ -50,12 +51,27 @@ export function StageRow({ stage }: StageRowProps) {
   return (
     <div className={cn("space-y-1.5", stage.status === "pending" && "opacity-50")}>
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">{stage.label}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">{stage.label}</span>
+          {stage.experimental && (
+            <Badge variant="outline" className="border-amber-400 text-amber-600 text-[10px] px-1.5 py-0">
+              Experimental
+            </Badge>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {eta && (
             <span className="text-muted-foreground text-xs tabular-nums">{eta}</span>
           )}
-          <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+          {stage.status === "failed" && logsUrl ? (
+            <a href={logsUrl} target="_top">
+              <Badge variant={statusBadge.variant} className="cursor-pointer hover:opacity-80">
+                {statusBadge.label} — view logs ↗
+              </Badge>
+            </a>
+          ) : (
+            <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+          )}
         </div>
       </div>
       {description && (

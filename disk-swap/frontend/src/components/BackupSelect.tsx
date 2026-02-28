@@ -9,15 +9,17 @@ import { cn } from "@/lib/utils";
 import type { BackupSelection, Device } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowLeft, ExternalLink, HardDrive, Plus, Trash2, Usb } from "lucide-react";
+import { ArrowLeft, ExternalLink, HardDrive, Plus, Rocket, Trash2, Usb } from "lucide-react";
 import { useState } from "react";
 
 interface BackupSelectProps {
   device: Device;
   selectedBackup: BackupSelection | null;
   skipFlash: boolean;
+  sandboxEnabled: boolean;
   onSelect: (backup: BackupSelection) => void;
   onSetSkipFlash: (skip: boolean) => void;
+  onSetSandboxEnabled: (enabled: boolean) => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -36,7 +38,7 @@ function formatSize(sizeMB: number): string {
   return `${Math.round(sizeMB)} MB`;
 }
 
-export function BackupSelect({ device, selectedBackup, skipFlash, onSelect, onSetSkipFlash, onNext, onBack }: BackupSelectProps) {
+export function BackupSelect({ device, selectedBackup, skipFlash, sandboxEnabled, onSelect, onSetSkipFlash, onSetSandboxEnabled, onNext, onBack }: BackupSelectProps) {
   const { data: backups, isLoading, error } = useBackups();
   const { data: imageCache } = useImageCache();
   const queryClient = useQueryClient();
@@ -219,6 +221,43 @@ export function BackupSelect({ device, selectedBackup, skipFlash, onSelect, onSe
           </Card>
         </div>
       )}
+
+      {/* Boot HA Sandbox (Experimental) */}
+      <div className="space-y-2">
+        <h2 className="text-sm font-medium">Live Boot</h2>
+        <Card size="sm">
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Rocket className="text-muted-foreground h-4 w-4" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Boot HA from Disk</span>
+                    <Badge variant="outline" className="border-amber-400 text-amber-600 text-[10px] px-1.5 py-0">
+                      Experimental
+                    </Badge>
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    {sandboxEnabled
+                      ? "Will boot HA directly from your new disk and open the UI for backup restore."
+                      : "Starts HA from your new disk so you can restore your backup in the real HA UI. Takes 5–15 min."}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="sandbox-enable" className="text-xs whitespace-nowrap">
+                  Enable
+                </label>
+                <Switch
+                  id="sandbox-enable"
+                  checked={sandboxEnabled}
+                  onCheckedChange={onSetSandboxEnabled}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="flex gap-2">
         <Button variant="outline" className="flex-1" onClick={onBack}>

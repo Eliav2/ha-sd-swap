@@ -20,11 +20,11 @@ export async function fetchBackups(): Promise<BackupsResponse> {
   return res.json();
 }
 
-export async function startClone(devicePath: string, backupSlug?: string, skipFlash?: boolean): Promise<void> {
+export async function startClone(devicePath: string, backupSlug?: string, skipFlash?: boolean, skipSandbox?: boolean): Promise<void> {
   const res = await fetch("api/start-clone", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ device: devicePath, backup_slug: backupSlug, skip_flash: skipFlash }),
+    body: JSON.stringify({ device: devicePath, backup_slug: backupSlug, skip_flash: skipFlash, skip_sandbox: skipSandbox }),
   });
   if (!res.ok) throw new Error(`Failed to start clone: ${res.status}`);
 }
@@ -54,4 +54,8 @@ export async function fetchCurrentJob(): Promise<Job | null> {
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Failed to fetch job: ${res.status}`);
   return res.json();
+}
+
+export async function signalSandboxDone(): Promise<void> {
+  await fetch("api/sandbox/done", { method: "POST" });
 }

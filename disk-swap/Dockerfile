@@ -38,9 +38,12 @@ RUN ARCH=$(uname -m) && \
 RUN ARCH=$(uname -m) && \
     DOCKER_ARCH=$([ "$ARCH" = "aarch64" ] && echo "aarch64" || echo "x86_64") && \
     curl -fsSL "https://download.docker.com/linux/static/stable/${DOCKER_ARCH}/docker-29.1.3.tgz" | \
-    tar xz docker/containerd docker/ctr && \
-    mv docker/containerd docker/ctr /usr/local/bin/ && \
+    tar xz docker/containerd docker/ctr docker/docker docker/dockerd docker/runc docker/containerd-shim-runc-v2 && \
+    mv docker/containerd docker/ctr docker/docker docker/dockerd docker/runc docker/containerd-shim-runc-v2 /usr/local/bin/ && \
     rm -rf docker/
+
+# iptables required for dockerd bridge networking (prevents CoreDNS loop in DinD)
+RUN apk add --no-cache iptables
 
 # Install Bun runtime
 ARG BUN_VERSION=1.2.4

@@ -12,6 +12,7 @@ import { upgradeWebSocket, websocket } from "hono/bun";
 import { getCurrentJob, dismissJob, subscribe } from "./jobs.ts";
 import { runClonePipeline, cancelClone } from "./clone.ts";
 import { getImageCacheInfo, discardCachedImage } from "./images.ts";
+import { signalSandboxDone, getSandboxProxyUrl } from "./sandbox.ts";
 
 const isDev = process.env.DEV === "1";
 
@@ -121,12 +122,12 @@ app.delete("/api/image-cache", async (c) => {
 
 app.post("/api/start-clone", async (c) => {
   try {
-    const body = await c.req.json<{ device: string; backup_slug?: string; skip_flash?: boolean }>();
+    const body = await c.req.json<{ device: string; backup_slug?: string; skip_flash?: boolean; skip_sandbox?: boolean }>();
     if (!body.device) {
       return c.json({ error: "Missing 'device' field" }, 400);
     }
 
-    const job = await runClonePipeline(body.device, body.backup_slug, body.skip_flash);
+    const job = await runClonePipeline(body.device, body.backup_slug, body.skip_flash, body.skip_sandbox);
     return c.json({ job_id: job.id });
   } catch (err) {
     console.error("Start clone failed:", err);
@@ -171,11 +172,14 @@ app.get(
                 stage: stage.name,
                 status: stage.status,
                 progress: stage.progress,
+                description: stage.description,
+                speed: stage.speed,
+                eta: stage.eta,
               }),
             );
           }
           if (job.status === "completed") {
-            ws.send(JSON.stringify({ type: "done" }));
+            ws.send(JSON.stringify({ type: "done", backupName: job.backupName }));
           } else if (job.status === "failed" && job.error) {
             const failedStage = Object.values(job.stages).find(
               (s) => s.status === "failed",
@@ -205,6 +209,34 @@ app.get(
     };
   }),
 );
+
+// --- Sandbox API ---
+
+// Signal the sandbox stage that the user has finished restoring their backup
+app.post("/api/sandbox/done", (c) => {
+  signalSandboxDone();
+  return c.json({ ok: true });
+});
+
+// Proxy requests to the inner HA Core running inside the DinD sandbox.
+// The browser opens /api/sandbox/ in a new tab to access the HA onboarding UI.
+app.all("/api/sandbox/*", async (c) => {
+  const proxyBase = getSandboxProxyUrl();
+  if (!proxyBase) return c.json({ error: "Sandbox not ready" }, 503);
+  const subpath = c.req.path.replace(/^\/api\/sandbox/, "") || "/";
+  const url = new URL(c.req.url);
+  const target = `${proxyBase}${subpath}${url.search}`;
+  const res = await fetch(target, {
+    method: c.req.method,
+    headers: c.req.raw.headers,
+    body: ["GET", "HEAD"].includes(c.req.method) ? undefined : await c.req.arrayBuffer(),
+  });
+  // Strip headers that would prevent the HA UI from loading inside an iframe.
+  const headers = new Headers(res.headers);
+  headers.delete("x-frame-options");
+  headers.delete("content-security-policy");
+  return new Response(res.body, { status: res.status, headers });
+});
 
 app.onError((err, c) => {
   console.error("Unhandled error:", err);

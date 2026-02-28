@@ -4,7 +4,8 @@ import { actions } from "@/store";
 
 /**
  * Connect to the backend WebSocket for real-time clone progress.
- * Dispatches stage updates to the TanStack Store.
+ * Automatically reconnects on drop (e.g. addon restart) so the UI
+ * always reflects the current server state.
  */
 export function useCloneProgress(active: boolean) {
   useEffect(() => {
@@ -19,28 +20,46 @@ export function useCloneProgress(active: boolean) {
     // Must be done client-side because the server's re-fetch normalization
     // loses the TCP connection needed for WebSocket upgrade
     const base = rawBase.replace(/\/\/+/g, "/");
-    const ws = new WebSocket(`${wsProto}//${location.host}${base}ws/progress`);
+    const wsUrl = `${wsProto}//${location.host}${base}ws/progress`;
 
-    ws.onmessage = (event) => {
-      const msg: WsMessage = JSON.parse(event.data);
-      switch (msg.type) {
-        case "stage_update":
-          actions.updateStage(msg.stage, msg.status, msg.progress, msg.speed, msg.eta, msg.description);
-          break;
-        case "error":
-          actions.updateStage(msg.stage, "failed", 0);
-          break;
-        case "done":
-          actions.complete(msg.backupName);
-          break;
-        case "cancelled":
-          actions.reset();
-          break;
-      }
-    };
+    let ws: WebSocket;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let stopped = false;
+
+    function connect() {
+      ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        const msg: WsMessage = JSON.parse(event.data);
+        switch (msg.type) {
+          case "stage_update":
+            actions.updateStage(msg.stage, msg.status, msg.progress, msg.speed, msg.eta, msg.description);
+            break;
+          case "error":
+            actions.updateStage(msg.stage, "failed", 0);
+            break;
+          case "done":
+            actions.finishJob(msg.backupName);
+            break;
+          case "cancelled":
+            actions.reset();
+            break;
+        }
+      };
+
+      ws.onclose = () => {
+        if (!stopped) {
+          reconnectTimer = setTimeout(connect, 2000);
+        }
+      };
+    }
+
+    connect();
 
     return () => {
-      ws.close();
+      stopped = true;
+      if (reconnectTimer !== null) clearTimeout(reconnectTimer);
+      ws?.close();
     };
   }, [active]);
 }

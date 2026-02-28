@@ -17,6 +17,12 @@ profile disk_swap flags=(attach_disconnected,mediate_deleted) {
   capability setuid,
   capability setgid,
   file,
+  # Allow inner containerd/runc to escape to unconfined for container namespace setup.
+  # Required for DinD: without this, setns fails when inner runc tries to enter a
+  # container's network namespace (exit status 1 from containerd-shim-runc-v2).
+  change_profile -> unconfined,
+  # Allow ptrace-style operations needed by containerd-shim for namespace management.
+  ptrace (read, trace),
   signal (send) set=(kill,term,int,hup,cont),
 
   # S6-Overlay

@@ -59,7 +59,7 @@ export interface ImageCacheStatus {
 }
 
 /** Clone job stages */
-export type StageName = "backup" | "download" | "flash" | "inject";
+export type StageName = "backup" | "download" | "flash" | "inject" | "sandbox";
 
 export type StageStatus = "pending" | "in_progress" | "completed" | "failed";
 
@@ -72,6 +72,7 @@ export interface StageState {
   speed?: number; // bytes/sec
   eta?: number; // seconds remaining
   link?: { text: string; url: string };
+  experimental?: boolean;
 }
 
 /** WebSocket messages (server → client) */

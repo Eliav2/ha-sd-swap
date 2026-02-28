@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useEffectEvent } from "react";
 import { useStore } from "@tanstack/react-store";
 import { appStore, actions } from "@/store";
 import { useCloneProgress } from "@/hooks/use-clone-progress";
@@ -13,30 +13,44 @@ import { SwapComplete } from "@/components/SwapComplete";
 
 export default function App() {
   const screen = useStore(appStore, (s) => s.screen);
+  const isCheckingJob = useStore(appStore, (s) => s.isCheckingJob);
   const selectedDevice = useStore(appStore, (s) => s.selectedDevice);
   const selectedBackup = useStore(appStore, (s) => s.selectedBackup);
   const backupName = useStore(appStore, (s) => s.backupName);
   const skipFlash = useStore(appStore, (s) => s.skipFlash);
+  const sandboxEnabled = useStore(appStore, (s) => s.sandboxEnabled);
   const stages = useStore(appStore, (s) => s.stages);
   const { data: systemInfo } = useSystemInfo();
-  const { data: imageCache } = useImageCache();
+  useImageCache(); // keep query warm for image-cache UI components
 
-  // On mount, check for an active/completed/failed job and resume if found
+  // useEffectEvent lets us read the latest systemInfo inside the effect without
+  // making it a reactive dependency (avoids re-running when systemInfo refetches).
+  const onJobFetched = useEffectEvent((job: Parameters<typeof actions.resumeJob>[0]) => {
+    actions.resumeJob(job, systemInfo);
+  });
+
+  // On initial load or after returning to device_select, check for an in-progress
+  // or completed job and restore it. Guard prevents re-running while already showing
+  // progress (which would overwrite live WS stage updates with stale persisted state).
   useEffect(() => {
-    fetchCurrentJob().then((job) => {
-      if (job) actions.resumeJob(job, systemInfo, imageCache);
-    }).catch(() => {});
-  }, [systemInfo, imageCache]);
+    if (screen !== "device_select") return;
+    fetchCurrentJob()
+      .then((job) => {
+        if (job) onJobFetched(job);
+        else actions.doneCheckingJob();
+      })
+      .catch(() => actions.doneCheckingJob());
+  }, [screen]);
 
   useCloneProgress(screen === "progress");
 
   async function handleStart() {
     if (!selectedDevice) return;
-    actions.startClone(systemInfo, imageCache);
+    actions.startClone(systemInfo);
     const backupSlug =
       selectedBackup?.type === "existing" ? selectedBackup.slug : undefined;
     try {
-      await startClone(selectedDevice.path, backupSlug, skipFlash);
+      await startClone(selectedDevice.path, backupSlug, skipFlash, !sandboxEnabled);
     } catch {
       // WebSocket will report actual stage errors
     }
@@ -44,7 +58,7 @@ export default function App() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
-      {screen === "device_select" && (
+      {screen === "device_select" && !isCheckingJob && (
         <DeviceList
           selectedDevice={selectedDevice}
           onSelect={actions.selectDevice}
@@ -65,8 +79,10 @@ export default function App() {
           device={selectedDevice}
           selectedBackup={selectedBackup}
           skipFlash={skipFlash}
+          sandboxEnabled={sandboxEnabled}
           onSelect={actions.selectBackup}
           onSetSkipFlash={actions.setSkipFlash}
+          onSetSandboxEnabled={actions.setSandboxEnabled}
           onNext={handleStart}
           onBack={actions.backToDeviceSelect}
         />

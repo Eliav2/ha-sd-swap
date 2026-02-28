@@ -27,7 +27,7 @@ import {
 } from "./images.ts";
 import { flash, runPartprobe } from "./flasher.ts";
 import { injectBackup } from "./injector.ts";
-import { precacheImages } from "./cacher.ts";
+import { runSandboxStage } from "./sandbox.ts";
 
 const isDev = process.env.DEV === "1";
 const MIN_DOWNLOAD_SPACE = 600 * 1024 * 1024; // 600 MB
@@ -103,6 +103,7 @@ export async function runClonePipeline(
   devicePath: string,
   existingBackupSlug?: string,
   skipFlash?: boolean,
+  skipSandbox?: boolean,
 ): Promise<Job> {
   const device = await preflight(devicePath);
   const job = createJob(device);
@@ -153,8 +154,13 @@ export async function runClonePipeline(
       console.log("[clone] Starting inject stage...");
       await runInjectStage(devicePath);
       checkCancelled();
-      console.log("[clone] Starting cache stage...");
-      await runCacheStage(devicePath);
+      if (skipSandbox) {
+        console.log("[clone] Skipping sandbox stage (not enabled by user).");
+        updateStage("sandbox", "completed", 100);
+      } else {
+        console.log("[clone] Starting sandbox stage...");
+        await runSandboxStage_pipeline(devicePath);
+      }
       completeJob();
       console.log("[clone] Pipeline completed successfully!");
     } catch (err) {
@@ -176,32 +182,32 @@ export async function runClonePipeline(
   return job;
 }
 
-async function runCacheStage(devicePath: string): Promise<void> {
-  updateStage("cache", "in_progress", 0);
+async function runSandboxStage_pipeline(devicePath: string): Promise<void> {
+  updateStage("sandbox", "in_progress", 0);
 
   if (isDev) {
     for (let p = 0; p <= 100; p += 25) {
-      await new Promise((r) => setTimeout(r, 200));
-      updateStage("cache", "in_progress", Math.min(p, 99));
+      await new Promise((r) => setTimeout(r, 300));
+      updateStage("sandbox", "in_progress", Math.min(p, 99));
     }
-    updateStage("cache", "completed", 100);
+    updateStage("sandbox", "completed", 100);
     return;
   }
 
   try {
-    await precacheImages(devicePath, backupSlug, machineName, (percent, description, speed, eta) => {
-      updateStage("cache", "in_progress", percent, speed, eta, description);
-    }, abortController?.signal);
-    updateStage("cache", "completed", 100);
+    await runSandboxStage(devicePath, machineName, (percent, description) => {
+      updateStage("sandbox", "in_progress", percent, undefined, undefined, description);
+    }, abortController!.signal);
+    updateStage("sandbox", "completed", 100);
   } catch (err) {
-    // Cache is non-fatal — the disk is still fully usable, just slower first boot
-    console.warn("[cache] Pre-cache failed (non-fatal):", err);
-    updateStage("cache", "completed", 100);
+    // Sandbox is non-fatal — the disk is still fully usable without the sandbox
+    console.warn("[sandbox] Stage failed (non-fatal):", err);
+    updateStage("sandbox", "failed", 0, undefined, undefined, "Sandbox failed — disk is still usable, check logs for details");
   }
 }
 
 function findActiveStage(job: Job): StageName {
-  for (const name of ["backup", "download", "flash", "inject", "cache"] as StageName[]) {
+  for (const name of ["backup", "download", "flash", "inject", "sandbox"] as StageName[]) {
     if (job.stages[name].status === "in_progress") return name;
   }
   return "backup";
@@ -294,7 +300,7 @@ async function runDownloadStage(): Promise<void> {
     // Check cached image
     if (await isCachedImageValid(localImagePath, checksumUrl)) {
       console.log("Using cached image (checksum valid).");
-      updateStage("download", "completed", 100);
+      updateStage("download", "completed", 100, undefined, undefined, "Used cached image");
       return;
     }
 

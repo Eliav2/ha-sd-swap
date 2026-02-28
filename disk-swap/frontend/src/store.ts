@@ -1,5 +1,5 @@
 import { Store } from "@tanstack/react-store";
-import type { BackupSelection, Device, ImageCacheStatus, Job, Screen, StageState, SystemInfoResponse } from "@/types";
+import type { BackupSelection, Device, Job, Screen, StageState, SystemInfoResponse } from "@/types";
 import { clearCurrentJob } from "@/lib/api";
 
 export interface AppState {
@@ -8,7 +8,11 @@ export interface AppState {
   selectedBackup: BackupSelection | null;
   backupName: string | null;
   skipFlash: boolean;
+  sandboxEnabled: boolean;
   stages: StageState[];
+  isJobDone: boolean;
+  /** True while the initial fetchCurrentJob check is in-flight (suppresses device_select flash). */
+  isCheckingJob: boolean;
 }
 
 const defaultStages: StageState[] = [
@@ -24,32 +28,30 @@ export const appStore = new Store<AppState>({
   selectedBackup: null,
   backupName: null,
   skipFlash: false,
+  sandboxEnabled: false,
   stages: defaultStages,
+  isJobDone: false,
+  isCheckingJob: true,
 });
 
 /** Build stages with dynamic descriptions based on user selections and system info. */
 function buildStages(
   backup: BackupSelection,
   systemInfo?: SystemInfoResponse | null,
-  imageCache?: ImageCacheStatus | null,
   skipFlash?: boolean,
+  sandboxEnabled?: boolean,
 ): StageState[] {
   const version = systemInfo?.os_version ?? "latest";
   const board = systemInfo?.board_slug ?? "your device";
   const releaseUrl = `https://github.com/home-assistant/operating-system/releases/tag/${version}`;
-  const isCached = imageCache?.cached === true;
 
   const downloadDesc = skipFlash
     ? "Skipped — device already has HA OS."
-    : isCached
-      ? `Using cached HA OS ${version} image for ${board}.`
-      : `Downloads HA OS ${version} for ${board}.`;
+    : `Downloads HA OS ${version} for ${board}.`;
 
   const downloadLabel = skipFlash
     ? "Download HA OS image (skipped)"
-    : isCached
-      ? "Download HA OS image (cached)"
-      : "Download HA OS image";
+    : "Download HA OS image";
 
   return [
     {
@@ -85,6 +87,14 @@ function buildStages(
       status: "pending",
       progress: 0,
     },
+    ...(sandboxEnabled ? [{
+      name: "sandbox" as const,
+      label: "Boot HA from Disk",
+      description: "Starts Home Assistant directly from your new disk — restore your backup in the real HA interface before first boot.",
+      status: "pending" as const,
+      progress: 0,
+      experimental: true,
+    }] : []),
   ];
 }
 
@@ -114,14 +124,19 @@ export const actions = {
     appStore.setState((s) => ({ ...s, skipFlash: skip }));
   },
 
+  setSandboxEnabled(enabled: boolean) {
+    appStore.setState((s) => ({ ...s, sandboxEnabled: enabled }));
+  },
+
   /** Start the pipeline after backup is selected. */
-  startClone(systemInfo?: SystemInfoResponse | null, imageCache?: ImageCacheStatus | null) {
+  startClone(systemInfo?: SystemInfoResponse | null) {
     appStore.setState((s) => {
       const backup = s.selectedBackup ?? { type: "new" as const };
       return {
         ...s,
         screen: "progress" as const,
-        stages: buildStages(backup, systemInfo, imageCache, s.skipFlash),
+        isJobDone: false,
+        stages: buildStages(backup, systemInfo, s.skipFlash, s.sandboxEnabled),
       };
     });
   },
@@ -134,6 +149,8 @@ export const actions = {
       selectedBackup: null,
       backupName: null,
       skipFlash: false,
+      sandboxEnabled: false,
+      isJobDone: false,
     }));
   },
 
@@ -144,6 +161,7 @@ export const actions = {
       screen: "device_select" as const,
       selectedBackup: null,
       skipFlash: false,
+      sandboxEnabled: false,
     }));
   },
 
@@ -156,6 +174,20 @@ export const actions = {
     }));
   },
 
+  /** Called once the initial fetchCurrentJob check completes (success or failure). */
+  doneCheckingJob() {
+    appStore.setState((s) => ({ ...s, isCheckingJob: false }));
+  },
+
+  /** Called when the WS "done" message arrives — marks job finished without navigating. */
+  finishJob(backupName?: string | null) {
+    appStore.setState((s) => ({
+      ...s,
+      isJobDone: true,
+      backupName: backupName ?? s.backupName,
+    }));
+  },
+
   complete(backupName?: string | null) {
     appStore.setState((s) => ({
       ...s,
@@ -164,11 +196,15 @@ export const actions = {
     }));
   },
 
-  resumeJob(job: Job, systemInfo?: SystemInfoResponse | null, imageCache?: ImageCacheStatus | null) {
-    const screen: Screen =
-      job.status === "completed" ? "complete" : "progress";
+  resumeJob(job: Job, systemInfo?: SystemInfoResponse | null) {
+    const isCompleted = job.status === "completed";
+    // Always restore to progress screen — the isJobDone flag + "Next" button
+    // navigate to complete. Routing directly to "complete" on refresh was
+    // confusing because the user would see the done screen without context.
+    const screen: Screen = "progress";
 
-    const base = buildStages({ type: "new" }, systemInfo, imageCache);
+    // Always include sandbox in resumed jobs (so any sandbox progress is visible)
+    const base = buildStages({ type: "new" }, systemInfo, false, true);
     const stages: StageState[] = base.map((init) => {
       const jobStage = job.stages[init.name];
       return {
@@ -185,7 +221,10 @@ export const actions = {
       selectedBackup: null,
       backupName: job.backupName,
       skipFlash: false,
+      sandboxEnabled: false,
       stages,
+      isJobDone: isCompleted,
+      isCheckingJob: false,
     }));
   },
 
@@ -197,7 +236,10 @@ export const actions = {
       selectedBackup: null,
       backupName: null,
       skipFlash: false,
+      sandboxEnabled: false,
       stages: defaultStages.map((st) => ({ ...st })),
+      isJobDone: false,
+      isCheckingJob: false,
     }));
   },
 };
