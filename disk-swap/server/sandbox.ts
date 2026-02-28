@@ -157,7 +157,9 @@ export async function runSandboxStage(
 
     // 3. Set up required host paths for Supervisor plugins
     await $`mkdir -p /run/dbus`.nothrow().quiet();
-    // Supervisor data dir on target disk (avoids the 2GB tmpfs size limit).
+    // Supervisor data dir = /mnt/newsd/supervisor (matches real HA OS disk layout).
+    // This means the injected backup at /mnt/newsd/supervisor/backup/ is automatically
+    // visible to the inner Supervisor as /data/backup/ without any extra copying.
     // audio/external must pre-exist: audio plugin fails on CAP_SYS_NICE and never
     // creates it, but HA Core bind-mounts it and errors out if the path is missing.
     // cid_files/homeassistant.cid must pre-exist as an empty file: Docker bind-mounts
@@ -165,9 +167,12 @@ export async function runSandboxStage(
     // config.json removal forces fresh-boot mode (not "Detected Supervisor restart"):
     // in restart mode the Supervisor defers Core start to a ~5-minute periodic watchdog;
     // in fresh mode it starts Core immediately during initialization.
-    await $`mkdir -p /mnt/newsd/sandbox/audio/external /mnt/newsd/sandbox/cid_files`.nothrow().quiet();
-    await $`touch /mnt/newsd/sandbox/cid_files/homeassistant.cid`.nothrow().quiet();
-    await $`rm -f /mnt/newsd/sandbox/config.json`.nothrow().quiet();
+    // homeassistant dir removal forces fresh onboarding on every sandbox run so the
+    // iframe always shows the onboarding UI (not a dashboard from a previous run).
+    await $`mkdir -p /mnt/newsd/supervisor/audio/external /mnt/newsd/supervisor/cid_files`.nothrow().quiet();
+    await $`touch /mnt/newsd/supervisor/cid_files/homeassistant.cid`.nothrow().quiet();
+    await $`rm -f /mnt/newsd/supervisor/config.json`.nothrow().quiet();
+    await $`rm -rf /mnt/newsd/supervisor/homeassistant`.nothrow().quiet();
     // Observer plugin needs /run/docker.sock → point to our DinD socket
     try {
       await $`ln -sf ${DIND_SOCK} /run/docker.sock`.quiet();
@@ -287,12 +292,12 @@ export async function runSandboxStage(
       --privileged \
       --security-opt apparmor=unconfined \
       --security-opt seccomp=unconfined \
-      -e SUPERVISOR_SHARE=/mnt/newsd/sandbox \
+      -e SUPERVISOR_SHARE=/mnt/newsd/supervisor \
       -e SUPERVISOR_NAME=hassio_supervisor \
       -e SUPERVISOR_MACHINE=${machine} \
       -e SUPERVISOR_WAIT_BOOT=180 \
       -v ${DIND_SOCK}:/run/docker.sock:rw \
-      -v /mnt/newsd/sandbox:/data:rw \
+      -v /mnt/newsd/supervisor:/data:rw \
       -v /etc/machine-id:/etc/machine-id:ro \
       ${SUPERVISOR_IMAGE}`;
     console.log("[sandbox] Supervisor container started");

@@ -83,6 +83,8 @@ export interface StageState {
   status: StageStatus;
   progress: number; // 0–100
   description?: string;
+  speed?: number;
+  eta?: number;
 }
 
 export type JobStatus = "in_progress" | "completed" | "failed";

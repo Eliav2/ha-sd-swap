@@ -57,5 +57,5 @@ export async function fetchCurrentJob(): Promise<Job | null> {
 }
 
 export async function signalSandboxDone(): Promise<void> {
-  await fetch("api/sandbox/done", { method: "POST" });
+  await fetch("api/sandbox-done", { method: "POST" });
 }

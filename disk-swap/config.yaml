@@ -33,6 +33,10 @@ ingress_entry: /
 panel_icon: "mdi:micro-sd"
 panel_title: "Disk Swap"
 
+# Direct port for the sandbox HA proxy (different origin from port 8123 → no auth sharing)
+ports:
+  8124/tcp: 8124
+
 # Supervisor API access
 # manager role: access to /backups/*, /jobs/* (for polling backup progress),
 # /host/*, /os/*, and all read endpoints.

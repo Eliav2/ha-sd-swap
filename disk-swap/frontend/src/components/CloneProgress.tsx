@@ -83,7 +83,7 @@ export function CloneProgress({ device, stages }: CloneProgressProps) {
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <iframe
-              src="api/sandbox/"
+              src={`http://${window.location.hostname}:8124/`}
               className="w-full rounded-md border"
               style={{ height: "600px" }}
               title="Home Assistant"

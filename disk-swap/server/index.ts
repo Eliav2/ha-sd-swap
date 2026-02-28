@@ -213,30 +213,54 @@ app.get(
 // --- Sandbox API ---
 
 // Signal the sandbox stage that the user has finished restoring their backup
-app.post("/api/sandbox/done", (c) => {
+app.post("/api/sandbox-done", (c) => {
   signalSandboxDone();
   return c.json({ ok: true });
 });
 
-// Proxy requests to the inner HA Core running inside the DinD sandbox.
-// The browser opens /api/sandbox/ in a new tab to access the HA onboarding UI.
-app.all("/api/sandbox/*", async (c) => {
-  const proxyBase = getSandboxProxyUrl();
-  if (!proxyBase) return c.json({ error: "Sandbox not ready" }, 503);
-  const subpath = c.req.path.replace(/^\/api\/sandbox/, "") || "/";
-  const url = new URL(c.req.url);
-  const target = `${proxyBase}${subpath}${url.search}`;
-  const res = await fetch(target, {
-    method: c.req.method,
-    headers: c.req.raw.headers,
-    body: ["GET", "HEAD"].includes(c.req.method) ? undefined : await c.req.arrayBuffer(),
-  });
-  // Strip headers that would prevent the HA UI from loading inside an iframe.
-  const headers = new Headers(res.headers);
-  headers.delete("x-frame-options");
-  headers.delete("content-security-policy");
-  return new Response(res.body, { status: res.status, headers });
+// --- Sandbox direct-port proxy ---
+//
+// The inner HA Core (127.0.0.1:8123) is exposed on a SEPARATE port (8124) so the
+// browser connects to a different origin than the outer HA (port 8123).
+// Different port = different origin = isolated localStorage/cookies/auth.
+// No JS interception or HTML path rewriting needed: HA's absolute paths like
+// /frontend_latest/x.js resolve to 192.168.64.2:8124/frontend_latest/... which
+// proxies straight to the inner HA — the right scripts, the right auth state.
+const SANDBOX_PROXY_PORT = 8124;
+
+Bun.serve({
+  port: SANDBOX_PROXY_PORT,
+  async fetch(req) {
+    const proxyBase = getSandboxProxyUrl();
+    if (!proxyBase) {
+      return new Response("Sandbox not ready\n", { status: 503, headers: { "content-type": "text/plain" } });
+    }
+    const url = new URL(req.url);
+    const target = `${proxyBase}${url.pathname}${url.search}`;
+
+    const proxyHeaders = new Headers(req.headers);
+    proxyHeaders.set("host", new URL(proxyBase).host);
+
+    const res = await fetch(target, {
+      method: req.method,
+      headers: proxyHeaders,
+      body: ["GET", "HEAD"].includes(req.method) ? undefined : await req.arrayBuffer(),
+    });
+
+    const headers = new Headers(res.headers);
+    // Allow embedding in our addon iframe
+    headers.delete("x-frame-options");
+    headers.delete("content-security-policy");
+    // Avoid duplicate Date header (inner HA + Bun both add one → 502)
+    headers.delete("date");
+    // Bun auto-decompresses but keeps Content-Encoding → mismatch → client errors
+    headers.delete("content-encoding");
+
+    return new Response(res.body, { status: res.status, headers });
+  },
 });
+
+console.log(`Sandbox proxy listening on port ${SANDBOX_PROXY_PORT}`);
 
 app.onError((err, c) => {
   console.error("Unhandled error:", err);
